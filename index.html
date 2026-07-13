@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ร้านชาแมกไม้ — เลือกบทบาท</title>
   <style>
-    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--paper:#fff;--amber:#E28A33;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;}
-    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:var(--cream-100);color:var(--ink);} a{text-decoration:none;color:inherit;}
-    .wrap{max-width:1000px;margin:0 auto;padding:0 0 60px;}
-    .hero{background:linear-gradient(135deg,var(--brown-800),var(--brown-900));color:#fff;border-radius:0;padding:28px 22px;box-shadow:none;margin:0 0 20px;}
-    .hero h1{margin:0 0 8px;font-size:28px;font-family:'Noto Serif Thai',serif;}
-    .hero p{margin:0;opacity:.9;}
+    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--cream-050:#FFFDF8;--paper:#fff;--amber:#E28A33;--amber-dark:#C96F1E;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;--ink-soft:#6D6257;--shadow:0 16px 40px -24px rgba(62,42,30,.35);}
+    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:linear-gradient(135deg,#fdf7ee 0%,#f7ecdb 100%);color:var(--ink);min-height:100vh;} a{text-decoration:none;color:inherit;}
+    .wrap{max-width:1040px;margin:0 auto;padding:24px 18px 60px;}
+    .hero{background:linear-gradient(135deg,var(--brown-800),var(--brown-900));color:#fff;border-radius:20px;padding:28px 24px;box-shadow:var(--shadow);margin:0 0 20px;}
+    .hero h1{margin:0 0 6px;font-size:28px;font-family:'Noto Serif Thai',serif;}
+    .hero p{margin:0;opacity:.9;font-size:15px;}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px;}
-    .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;}
-    .card h2{margin:0;font-size:20px;font-family:'Noto Serif Thai',serif;}
-    .card p{margin:0;color:#6f6559;line-height:1.5;}
-    .btn{display:inline-block;padding:10px 14px;border-radius:999px;background:var(--amber);color:#2C1B0E;font-weight:700;width:max-content;}
+    .card{background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow);}
+    .card h2{margin:0;font-size:20px;font-family:'Noto Serif Thai',serif;color:var(--brown-900);}
+    .card p{margin:0;color:var(--ink-soft);line-height:1.6;font-size:14px;}
+    .btn{display:inline-block;padding:10px 14px;border-radius:999px;background:linear-gradient(135deg,var(--amber),var(--amber-dark));color:#fff;font-weight:700;width:max-content;box-shadow:0 10px 20px -12px rgba(194,111,30,.65);transition:transform .2s ease, box-shadow .2s ease;}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 14px 22px -12px rgba(194,111,30,.8);}
     @media (max-width:700px){.grid{grid-template-columns:1fr;}}
   </style>
 </head>

@@ -5,18 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>แคชเชียร์ — ร้านชาแมกไม้</title>
   <style>
-    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--paper:#fff;--amber:#E28A33;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;--ink-soft:#8A7A67;}
-    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:var(--cream-100);color:var(--ink);} a{color:inherit;text-decoration:none;}
+    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--paper:#fff;--amber:#E28A33;--amber-dark:#C96F1E;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;--ink-soft:#8A7A67;--shadow:0 16px 40px -24px rgba(62,42,30,.35);}
+    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:linear-gradient(135deg,#fdf7ee 0%,#f7ecdb 100%);color:var(--ink);} a{color:inherit;text-decoration:none;}
     .page{max-width:1100px;margin:0 auto;padding:0 0 20px;}
-    .topbar{background:var(--brown-900);color:#fff;border-radius:0;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:none;margin:0 0 18px;}
+    .topbar{background:linear-gradient(135deg,var(--brown-800),var(--brown-900));color:#fff;border-radius:18px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);margin:0 0 18px;}
     .topbar h1{margin:0;font-size:22px;font-family:'Noto Serif Thai',serif;}
     .topbar p{margin:3px 0 0;font-size:13px;opacity:.9;}
     .layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;}
-    .panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px;}
+    .panel{background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow);}
     .tables{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-    .table{border:1px solid var(--line);padding:14px 10px;border-radius:14px;text-align:center;background:#faf7ef;cursor:pointer;}
-    .table.active{background:var(--brown-800);color:#fff;} .table h3{margin:0;font-size:20px;} .table small{display:block;margin-top:5px;}
-    .bill{font-size:15px;line-height:1.6;} .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);} .row:last-child{border-bottom:none;} .btns{display:flex;gap:8px;margin-top:10px;} .btn{flex:1;border:none;border-radius:10px;padding:10px 12px;font-weight:700;} .btn.cash{background:var(--brown-800);color:#fff;} .btn.qr{background:var(--amber);color:#2C1B0E;} .btn.done{background:var(--jade);color:#fff;}
+    .table{border:1px solid var(--line);padding:14px 10px;border-radius:14px;text-align:center;background:#faf7ef;cursor:pointer;box-shadow:0 8px 18px -14px rgba(0,0,0,.25);} .table:hover{transform:translateY(-1px);} .table.active{background:linear-gradient(135deg,var(--brown-800),var(--brown-900));color:#fff;} .table h3{margin:0;font-size:20px;} .table small{display:block;margin-top:5px;}
+    .bill{font-size:15px;line-height:1.6;} .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);} .row:last-child{border-bottom:none;} .btns{display:flex;gap:8px;margin-top:10px;} .btn{flex:1;border:none;border-radius:10px;padding:10px 12px;font-weight:700;transition:transform .2s ease;} .btn:hover{transform:translateY(-1px);} .btn.cash{background:var(--brown-800);color:#fff;} .btn.qr{background:linear-gradient(135deg,var(--amber),var(--amber-dark));color:#fff;} .btn.done{background:var(--jade);color:#fff;}
     @media (max-width:800px){.layout{grid-template-columns:1fr;}.tables{grid-template-columns:repeat(2,1fr);}}
   </style>
 </head>
