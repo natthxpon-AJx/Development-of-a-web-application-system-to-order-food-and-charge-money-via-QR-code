@@ -54,14 +54,6 @@
   .brandbar .brand-text .name{font-family:'Noto Serif Thai',serif;font-weight:700;font-size:17px;letter-spacing:.2px;}
   .brandbar .brand-text .tag{font-size:11px;color:#C9B79C;letter-spacing:.5px;}
 
-  .roletabs{display:flex;gap:4px;background:rgba(255,255,255,0.06);padding:4px;border-radius:12px;}
-  .roletabs button{
-    border:none;background:transparent;color:#D8C7AC;padding:8px 14px;border-radius:9px;font-size:13.5px;font-weight:600;
-    display:flex;align-items:center;gap:6px;transition:all .15s ease;
-  }
-  .roletabs button.active{background:var(--amber);color:#2C1B0E;box-shadow:0 1px 2px rgba(0,0,0,0.2);}
-  .roletabs button:hover:not(.active){color:#fff;}
-
   .stage{flex:1;padding:28px 22px 60px;display:flex;justify-content:center;}
   .stage-inner{width:100%;max-width:1180px;}
 
@@ -119,23 +111,23 @@
   .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
   .btn:disabled{opacity:.4;cursor:not-allowed;}
 
-  /* ===== Customer phone frame ===== */
-  .phone-wrap{display:flex;justify-content:center;}
+  /* ===== Customer web view ===== */
+  .phone-wrap{display:block;}
   .phone{
-    width:380px;background:var(--paper);border-radius:34px;border:8px solid var(--brown-900);
-    box-shadow:0 20px 45px -18px rgba(60,40,20,0.45);overflow:hidden;position:relative;
+    width:100%;max-width:none;background:var(--paper);border-radius:16px;border:1px solid var(--line);
+    box-shadow:0 12px 30px -12px rgba(60,40,20,0.25);overflow:hidden;position:relative;
   }
-  .phone-screen{height:720px;display:flex;flex-direction:column;background:var(--cream-050);}
+  .phone-screen{min-height:640px;display:flex;flex-direction:column;background:var(--cream-050);}
   .phone-header{
-    background:var(--brown-700);color:#fff;padding:16px 18px 14px;
+    background:linear-gradient(135deg,var(--brown-700),var(--brown-900));color:#fff;padding:16px 18px 14px;
   }
   .phone-header .row1{display:flex;justify-content:space-between;align-items:center;}
   .phone-header .shopname{font-family:'Noto Serif Thai',serif;font-weight:700;font-size:16px;}
   .phone-header .table-chip{background:rgba(255,255,255,0.16);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;}
-  .phone-content{flex:1;overflow-y:auto;padding:14px 14px 90px;}
+  .phone-content{flex:1;overflow:visible;padding:16px 18px 24px;}
   .phone-tabbar{
-    position:absolute;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);
-    display:flex;padding:8px 10px 12px;gap:6px;
+    position:sticky;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);
+    display:flex;padding:10px 12px 12px;gap:6px;
   }
   .phone-tabbar button{
     flex:1;background:transparent;border:none;padding:8px 4px;border-radius:10px;font-size:11.5px;font-weight:700;color:var(--ink-soft);
@@ -250,7 +242,7 @@
     .kpi-grid{grid-template-columns:repeat(2,1fr);}
     .table-grid{grid-template-columns:repeat(2,1fr);}
     .form-grid{grid-template-columns:1fr;}
-    .phone{width:100%;border-radius:0;border-width:0;}
+    .phone{border-radius:0;border-width:1px 0 0 0;}
     .stage{padding:0;}
   }
 </style>
@@ -897,21 +889,9 @@ function appWindow(title, body){
 }
 
 /* ============================= ROOT RENDER ============================= */
-function renderRoleTabs(){
-  const roles = [['customer','🧋','ลูกค้า'],['kitchen','🍳','ครัว'],['cashier','💳','แคชเชียร์'],['owner','📊','เจ้าของร้าน']];
-  return `<div class="roletabs">
-    ${roles.map(([k,ico,label])=>`<button class="${state.role===k?'active':''}" onclick="setRole('${k}')">${ico} ${label}</button>`).join('')}
-  </div>`;
-}
-function setRole(r){ state.role=r; render(); }
-
 function render(){
   const app = document.getElementById('app');
-  let content = '';
-  if(state.role==='customer') content = renderCustomer();
-  if(state.role==='kitchen') content = renderKitchen();
-  if(state.role==='cashier') content = renderCashier();
-  if(state.role==='owner') content = renderOwner();
+  const content = renderCustomer();
 
   app.innerHTML = `
     <div class="brandbar">
@@ -922,7 +902,6 @@ function render(){
           <div class="tag">ระบบสั่งอาหาร &amp; คิดเงินผ่าน QR</div>
         </div>
       </div>
-      ${renderRoleTabs()}
     </div>
     <div class="stage"><div class="stage-inner">${content}</div></div>
     ${state.toast? `<div class="toast">${state.toast}</div>` : ''}

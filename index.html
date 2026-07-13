@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ร้านชาแมกไม้ — เลือกบทบาท</title>
+  <style>
+    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--paper:#fff;--amber:#E28A33;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;}
+    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:var(--cream-100);color:var(--ink);} a{text-decoration:none;color:inherit;}
+    .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 60px;}
+    .hero{background:linear-gradient(135deg,var(--brown-800),var(--brown-900));color:#fff;border-radius:24px;padding:28px;box-shadow:0 12px 30px -12px rgba(0,0,0,0.25);}
+    .hero h1{margin:0 0 8px;font-size:28px;font-family:'Noto Serif Thai',serif;}
+    .hero p{margin:0;opacity:.9;}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px;}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;}
+    .card h2{margin:0;font-size:20px;font-family:'Noto Serif Thai',serif;}
+    .card p{margin:0;color:#6f6559;line-height:1.5;}
+    .btn{display:inline-block;padding:10px 14px;border-radius:999px;background:var(--amber);color:#2C1B0E;font-weight:700;width:max-content;}
+    @media (max-width:700px){.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>ร้านชาแมกไม้</h1>
+      <p>เลือกบทบาทเพื่อเปิดหน้าแยกตามหน้าที่</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h2>ครัว</h2>
+        <p>แผงออเดอร์สำหรับรับออเดอร์และติดตามสถานะ</p>
+        <a class="btn" href="kitchen.html">เปิดหน้าครัว</a>
+      </div>
+      <div class="card">
+        <h2>แคชเชียร์</h2>
+        <p>ระบบคิดเงินและยืนยันชำระเงินตามโต๊ะ</p>
+        <a class="btn" href="cashier.html">เปิดหน้าแคชเชียร์</a>
+      </div>
+      <div class="card">
+        <h2>เจ้าของร้าน</h2>
+        <p>ภาพรวมยอดขายและจัดการเมนูพนักงาน</p>
+        <a class="btn" href="owner.html">เปิดหน้าเจ้าของร้าน</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

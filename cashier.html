@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>แคชเชียร์ — ร้านชาแมกไม้</title>
+  <style>
+    :root{--brown-900:#3E2A1E;--brown-800:#5C4030;--cream-100:#FBF5E9;--paper:#fff;--amber:#E28A33;--jade:#3E8E63;--line:#E7DCC9;--ink:#2C2118;--ink-soft:#8A7A67;}
+    *{box-sizing:border-box;} body{margin:0;font-family:'Sarabun',sans-serif;background:var(--cream-100);color:var(--ink);} a{color:inherit;text-decoration:none;}
+    .page{max-width:1100px;margin:0 auto;padding:20px;}
+    .topbar{background:var(--brown-900);color:#fff;border-radius:20px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;}
+    .topbar h1{margin:0;font-size:22px;font-family:'Noto Serif Thai',serif;}
+    .topbar p{margin:3px 0 0;font-size:13px;opacity:.9;}
+    .layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;}
+    .panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px;}
+    .tables{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .table{border:1px solid var(--line);padding:14px 10px;border-radius:14px;text-align:center;background:#faf7ef;cursor:pointer;}
+    .table.active{background:var(--brown-800);color:#fff;} .table h3{margin:0;font-size:20px;} .table small{display:block;margin-top:5px;}
+    .bill{font-size:15px;line-height:1.6;} .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);} .row:last-child{border-bottom:none;} .btns{display:flex;gap:8px;margin-top:10px;} .btn{flex:1;border:none;border-radius:10px;padding:10px 12px;font-weight:700;} .btn.cash{background:var(--brown-800);color:#fff;} .btn.qr{background:var(--amber);color:#2C1B0E;} .btn.done{background:var(--jade);color:#fff;}
+    @media (max-width:800px){.layout{grid-template-columns:1fr;}.tables{grid-template-columns:repeat(2,1fr);}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div>
+        <h1>แคชเชียร์</h1>
+        <p>รับเงินและชำระบิลโต๊ะตามรายการ</p>
+      </div>
+      <a href="index.html" style="background:rgba(255,255,255,.16);padding:8px 12px;border-radius:999px;font-size:13px;font-weight:700;">กลับหน้าเลือก</a>
+    </div>
+    <div class="layout">
+      <div class="panel">
+        <h3 style="margin-top:0;">เลือกโต๊ะ</h3>
+        <div id="tables" class="tables"></div>
+      </div>
+      <div class="panel">
+        <h3 style="margin-top:0;">บิลที่เลือก</h3>
+        <div id="bill"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const bills = {
+      1:[{name:'ชาไทย',price:30},{name:'ไส้กรอกแดง',price:35}],
+      2:[{name:'มาม่าต้มยำน้ำข้น',price:50},{name:'ไมโล',price:30}],
+      5:[{name:'ชาเขียวมัจฉะ',price:40},{name:'ข้าวไข่เจียวไก่สับ',price:35}],
+    };
+    let selected = 5;
+    function money(n){return '฿' + n.toLocaleString('th-TH');}
+    function renderTables(){
+      document.getElementById('tables').innerHTML = [1,2,3,4,5,6,7,8].map(t=>`<div class="table ${selected===t?'active':''}" onclick="selectTable(${t})"><h3>${t}</h3><small>${bills[t]?money(bills[t].reduce((s,i)=>s+i.price,0)):'ว่าง'}</small></div>`).join('');
+    }
+    function selectTable(t){selected=t; renderTables(); renderBill();}
+    function renderBill(){
+      const items = bills[selected] || [];
+      const total = items.reduce((s,i)=>s+i.price,0);
+      document.getElementById('bill').innerHTML = items.length ? `
+        <div class="bill">
+          ${items.map(i=>`<div class="row"><span>${i.name}</span><span>${money(i.price)}</span></div>`).join('')}
+          <div class="row" style="font-weight:700;font-size:16px;"><span>ยอดสุทธิ</span><span>${money(total)}</span></div>
+          <div class="btns"><button class="btn cash" onclick="complete('cash')">เงินสด</button><button class="btn qr" onclick="complete('qr')">QR</button></div>
+        </div>` : '<div style="color:var(--ink-soft);">เลือกโต๊ะที่มีรายการ</div>';
+    }
+    function complete(method){alert(`ชำระเงินโต๊ะ ${selected} ผ่าน ${method==='cash'?'เงินสด':'QR'} เรียบร้อย`);} 
+    renderTables(); renderBill();
+  </script>
+</body>
+</html>
