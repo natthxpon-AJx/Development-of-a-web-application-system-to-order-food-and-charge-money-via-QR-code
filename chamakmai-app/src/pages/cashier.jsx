@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ร้านชาแมกไม้ — ระบบคิดเงิน</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+
+const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
     --cream-100:#F3F4F6; --cream-050:#FFFFFF; --paper:#FFFFFF;
@@ -80,160 +74,221 @@
   @media (max-width:900px){
     .table-grid{grid-template-columns:repeat(2,1fr);}
   }
-</style>
-</head>
-<body>
-<div id="app"></div>
+`;
 
-<script>
-let orders = [
+const initialOrders = [
   {id:1, dispId:'#0001', table:5, time:'18:20', status:'done', paid:false,
     items:[
       {name:'ชาเขียวมัจฉะ', note:'หวานปกติ', price:40, qty:1},
       {name:'ไส้กรอกแดง', note:'ซอสมะเขือเทศ', price:35, qty:1},
     ]},
 ];
-let payments = [
+
+const initialPayments = [
   {table:2, amount:80, method:'qr', time:'18:05', items:[{name:'มาม่าต้มยำน้ำข้น',qty:1,price:50},{name:'ไมโล',qty:1,price:30}]},
   {table:5, amount:160, method:'cash', time:'18:30', items:[{name:'ชาไทย',qty:1,price:35},{name:'นมน้ำตาล',qty:1,price:25},{name:'ข้าวไข่เจียวไก่สับ',qty:1,price:25},{name:'ชาเขียวมัจฉะ',qty:1,price:40},{name:'ไส้กรอกแดง',qty:1,price:35}]},
 ];
 
-let state = {
-  toast: null,
-  cashier: { selected: null, cash:'', mode:null },
-};
+const allTables = [1,2,3,4,5,6,7,8];
 
-function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; render(); }, 1800); }
 function money(n){ return '฿' + n.toLocaleString('th-TH', {minimumFractionDigits: n%1? 2:0}); }
-function tableBill(table){
+function tableBill(table, orders){
   const unpaid = orders.filter(o=>o.table===table && !o.paid);
-  const items = [];
-  unpaid.forEach(o=> o.items.forEach(it=> items.push(it)));
+  const items = unpaid.flatMap(o=>o.items);
   const total = items.reduce((s,it)=> s + it.price*it.qty, 0);
   return {orders:unpaid, items, total};
 }
-function allTables(){ return [1,2,3,4,5,6,7,8]; }
 
-function appWindow(title, body, dark, sidebarIcons){
-  const icons = sidebarIcons || [{icon:'🏠',active:false}];
-  return `
-  <div class="app-window">
-    <div class="app-titlebar">
-      <div class="tleft"><span class="dot"></span>CM · ${title}</div>
-      <div class="online">Online</div>
-    </div>
-    <div class="app-flex">
-      <div class="app-sidebar">
-        ${icons.map(i=>`<button class="${i.active?'active':''}" ${i.onclick?`onclick="${i.onclick}"`:''} title="${i.label||''}">${i.icon}</button>`).join('')}
-      </div>
-      <div class="app-body-wrap"><div class="app-body ${dark?'dark':''}">${body}</div></div>
-    </div>
-  </div>`;
-}
+export default function Cashier(){
+  const [orders, setOrders] = useState(initialOrders);
+  const [payments, setPayments] = useState(initialPayments);
+  const [selected, setSelected] = useState(null);
+  const [mode, setMode] = useState(null);
+  const [cash, setCash] = useState('');
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
-function renderCashier(){
-  const cs = state.cashier;
-  const bill = cs.selected ? tableBill(cs.selected) : {items:[],total:0};
-  return appWindow('Cashier / Point of Sale (แคชเชียร์)', `
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:22px;">
-      <div>
-        <div style="font-weight:700;margin-bottom:12px;">โต๊ะ</div>
-        <div class="table-grid">
-          ${allTables().map(t=>{
-            const b = tableBill(t);
-            const has = b.total>0;
-            const sel = cs.selected===t;
-            return `<div class="table-tile ${has?'active':'empty'} ${sel?'selected':''}" onclick="${has?`cashierSelect(${t})`:''}">
-              <div class="tt-num">${t}</div>
-              <div class="tt-status">${has? money(b.total) : 'ว่าง'}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-      <div>
-        <div class="card">
-          ${cs.selected && bill.total>0 ? cashierBillPanel(cs, bill) : `<div class="empty-state" style="padding:30px 10px;"><div class="glyph">🧾</div>เลือกโต๊ะที่มีบิลเพื่อคิดเงิน</div>`}
-        </div>
-      </div>
-    </div>
-  `, false, [{icon:'🏠',label:'หน้าหลัก',active:false},{icon:'💳',label:'แคชเชียร์',active:true},{icon:'🧾',label:'ประวัติ',active:false}]);
-}
-function cashierBillPanel(cs, bill){
-  if(cs.mode==='cash') return cashierCashView(cs, bill);
-  if(cs.mode==='qr') return cashierQrView(cs, bill);
-  return `
-    <div style="font-weight:700;font-size:15px;margin-bottom:10px;">บิลโต๊ะ ${cs.selected}</div>
-    ${bill.items.map(it=>`<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0;border-bottom:1px solid var(--line);"><span>${it.name} ${it.note?`<span class="muted">(${it.note})</span>`:''} ×${it.qty}</span><span>${money(it.price*it.qty)}</span></div>`).join('')}
-    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:12px;">
-      <span>ยอดสุทธิ</span><span>${money(bill.total)}</span>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:16px;">
-      <button class="btn btn-dark" style="flex:1;" onclick="cashierMode('cash')">เงินสด</button>
-      <button class="btn btn-primary" style="flex:1;" onclick="cashierMode('qr')">แสกนจ่าย</button>
-    </div>
-  `;
-}
+  useEffect(() => {
+    document.title = 'ร้านชาแมกไม้ — ระบบคิดเงิน';
+    if (!document.getElementById('cm-google-fonts')){
+      const link = document.createElement('link');
+      link.id = 'cm-google-fonts';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap';
+      document.head.appendChild(link);
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
 
-function cashierCashView(cs, bill){
-  const received = parseInt(cs.cash||'0');
+  const bill = useMemo(() => selected !== null ? tableBill(selected, orders) : {items:[], total:0}, [selected, orders]);
+  const received = parseInt(cash || '0', 10) || 0;
   const change = Math.max(0, received - bill.total);
-  return `
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px;">รับเงินสด — โต๊ะ ${cs.selected}</div>
-    <div class="muted" style="font-size:12.5px;margin-bottom:10px;">ยอดสุทธิ ${money(bill.total)}</div>
-    <div style="text-align:center;font-family:'Space Mono',monospace;font-size:28px;font-weight:700;margin:10px 0;">฿${cs.cash||'0'}</div>
-    <div class="kp-grid">
-      ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="cashierKey('${n}')">${n}</button>`).join('')}
-      <button onclick="cashierKeyClear()">ล้าง</button>
-      <button onclick="cashierKey('0')">0</button>
-      <button onclick="cashierExact(${bill.total})">พอดี</button>
-    </div>
-    <div style="display:flex;gap:8px;margin:10px 0;">
-      ${[100,500,1000].map(v=>`<button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cashierAdd(${v})">+${v}</button>`).join('')}
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:14px;">
-      <span class="muted">เงินทอน</span><span style="font-weight:700;">${money(change)}</span>
-    </div>
-    <div style="display:flex;gap:10px;">
-      <button class="btn btn-ghost" style="flex:1;" onclick="cashierMode(null)">ย้อนกลับ</button>
-      <button class="btn btn-jade" style="flex:1;" ${received<bill.total?'disabled':''} onclick="cashierComplete('cash', ${bill.total})">รับเงิน / เสร็จสิ้น</button>
-    </div>
-  `;
-}
-function cashierQrView(cs, bill){
-  return `
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px;">สแกนจ่าย — โต๊ะ ${cs.selected}</div>
-    <div class="muted" style="font-size:12.5px;">พร้อมเพย์ · ร้านชาแมกไม้</div>
-    <div class="qr-box"></div>
-    <div style="text-align:center;font-family:'Space Mono',monospace;font-size:22px;font-weight:700;">${money(bill.total)}</div>
-    <div style="display:flex;gap:10px;margin-top:16px;">
-      <button class="btn btn-ghost" style="flex:1;" onclick="cashierMode(null)">ย้อนกลับ</button>
-      <button class="btn btn-jade" style="flex:1;" onclick="cashierComplete('qr', ${bill.total})">ชำระเงินสำเร็จ</button>
-    </div>
-  `;
-}
-function cashierSelect(t){ state.cashier.selected=t; state.cashier.mode=null; state.cashier.cash=''; render(); }
-function cashierMode(m){ state.cashier.mode=m; state.cashier.cash=''; render(); }
-function cashierKey(d){ state.cashier.cash=(state.cashier.cash||'')+d; render(); }
-function cashierKeyClear(){ state.cashier.cash=''; render(); }
-function cashierAdd(v){ state.cashier.cash=String(parseInt(state.cashier.cash||'0')+v); render(); }
-function cashierExact(total){ state.cashier.cash=String(total); render(); }
-function cashierComplete(method, total){
-  const t = state.cashier.selected;
-  const bill = tableBill(t);
-  payments.push({table:t, amount: total, method, time:new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}), items: bill.items});
-  bill.orders.forEach(o=> o.paid = true);
-  state.cashier.selected=null; state.cashier.mode=null; state.cashier.cash='';
-  showToast(`รับชำระเงินโต๊ะ ${t} เรียบร้อย ✓`);
-}
 
-function render(){
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="stage"><div class="stage-inner">${renderCashier()}</div></div>
-    ${state.toast? `<div class="toast">${state.toast}</div>` : ''}
-  `;
+  function showToast(msg){
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1800);
+  }
+
+  function cashierSelect(t){
+    if (tableBill(t, orders).total > 0) {
+      setSelected(t);
+      setMode(null);
+      setCash('');
+    }
+  }
+  function cashierMode(m){ setMode(m); setCash(''); }
+  function cashierKey(d){ setCash(prev => `${prev || ''}${d}`); }
+  function cashierKeyClear(){ setCash(''); }
+  function cashierAdd(v){ setCash(prev => String((parseInt(prev || '0', 10) || 0) + v)); }
+  function cashierExact(total){ setCash(String(total)); }
+  function cashierComplete(method, total){
+    if (selected === null) return;
+    const billDetails = tableBill(selected, orders);
+    setPayments(prev => [...prev, {
+      table: selected,
+      amount: total,
+      method,
+      time: new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),
+      items: billDetails.items,
+    }]);
+    setOrders(prev => prev.map(o => o.table === selected && !o.paid ? {...o, paid:true} : o));
+    showToast(`รับชำระเงินโต๊ะ ${selected} เรียบร้อย ✓`);
+    setSelected(null);
+    setMode(null);
+    setCash('');
+  }
+
+  function appWindow(title, body, dark, sidebarIcons){
+    return (
+      <div className="app-window">
+        <div className="app-titlebar">
+          <div className="tleft"><span className="dot"></span>CM · {title}</div>
+          <div className="online">Online</div>
+        </div>
+        <div className="app-flex">
+          <div className="app-sidebar">
+            {sidebarIcons.map(i => (
+              <button key={i.label} className={i.active ? 'active' : ''} type="button" title={i.label || ''}>{i.icon}</button>
+            ))}
+          </div>
+          <div className="app-body-wrap"><div className={`app-body ${dark ? 'dark' : ''}`}>{body}</div></div>
+        </div>
+      </div>
+    );
+  }
+
+  function cashierBillPanel(){
+    if (mode === 'cash') return cashierCashView();
+    if (mode === 'qr') return cashierQrView();
+    return (
+      <>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:10}}>บิลโต๊ะ {selected}</div>
+        {bill.items.map((it, index) => (
+          <div key={index} style={{display:'flex',justifyContent:'space-between',fontSize:13.5,padding:'5px 0',borderBottom:'1px solid var(--line)'}}>
+            <span>{it.name} {it.note ? <span className="muted">({it.note})</span> : null} ×{it.qty}</span>
+            <span>{money(it.price * it.qty)}</span>
+          </div>
+        ))}
+        <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:16,marginTop:12}}>
+          <span>ยอดสุทธิ</span><span>{money(bill.total)}</span>
+        </div>
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <button type="button" className="btn btn-dark" style={{flex:1}} onClick={() => cashierMode('cash')}>เงินสด</button>
+          <button type="button" className="btn btn-primary" style={{flex:1}} onClick={() => cashierMode('qr')}>แสกนจ่าย</button>
+        </div>
+      </>
+    );
+  }
+
+  function cashierCashView(){
+    return (
+      <>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>รับเงินสด — โต๊ะ {selected}</div>
+        <div className="muted" style={{fontSize:12.5,marginBottom:10}}>ยอดสุทธิ {money(bill.total)}</div>
+        <div style={{textAlign:'center',fontFamily:'Space Mono,monospace',fontSize:28,fontWeight:700,margin:'10px 0'}}>฿{cash || '0'}</div>
+        <div className="kp-grid">
+          {[1,2,3,4,5,6,7,8,9].map(n => (
+            <button key={n} type="button" onClick={() => cashierKey(String(n))}>{n}</button>
+          ))}
+          <button type="button" onClick={cashierKeyClear}>ล้าง</button>
+          <button type="button" onClick={() => cashierKey('0')}>0</button>
+          <button type="button" onClick={() => cashierExact(bill.total)}>พอดี</button>
+        </div>
+        <div style={{display:'flex',gap:8,margin:'10px 0'}}>
+          {[100,500,1000].map(v => (
+            <button key={v} type="button" className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => cashierAdd(v)}>+{v}</button>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13.5,marginBottom:14}}>
+          <span className="muted">เงินทอน</span><span style={{fontWeight:700}}>{money(change)}</span>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button type="button" className="btn btn-ghost" style={{flex:1}} onClick={() => cashierMode(null)}>ย้อนกลับ</button>
+          <button type="button" className="btn btn-jade" style={{flex:1}} disabled={received < bill.total} onClick={() => cashierComplete('cash', bill.total)}>รับเงิน / เสร็จสิ้น</button>
+        </div>
+      </>
+    );
+  }
+
+  function cashierQrView(){
+    return (
+      <>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>สแกนจ่าย — โต๊ะ {selected}</div>
+        <div className="muted" style={{fontSize:12.5}}>พร้อมเพย์ · ร้านชาแมกไม้</div>
+        <div className="qr-box"></div>
+        <div style={{textAlign:'center',fontFamily:'Space Mono,monospace',fontSize:22,fontWeight:700}}>{money(bill.total)}</div>
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <button type="button" className="btn btn-ghost" style={{flex:1}} onClick={() => cashierMode(null)}>ย้อนกลับ</button>
+          <button type="button" className="btn btn-jade" style={{flex:1}} onClick={() => cashierComplete('qr', bill.total)}>ชำระเงินสำเร็จ</button>
+        </div>
+      </>
+    );
+  }
+
+  const hasBill = selected !== null && bill.total > 0;
+  function renderTableTiles(){
+    return allTables.map(t => {
+      const b = tableBill(t, orders);
+      const has = b.total > 0;
+      const sel = selected === t;
+      return (
+        <div key={t} className={`table-tile ${has ? 'active' : 'empty'} ${sel ? 'selected' : ''}`} onClick={() => has && cashierSelect(t)}>
+          <div className="tt-num">{t}</div>
+          <div className="tt-status">{has ? money(b.total) : 'ว่าง'}</div>
+        </div>
+      );
+    });
+  }
+
+  return (
+    <div id="app">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+      {appWindow(
+        'Cashier / Point of Sale (แคชเชียร์)',
+        <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:22}}>
+          <div>
+            <div style={{fontWeight:700,marginBottom:12}}>โต๊ะ</div>
+            <div className="table-grid">{renderTableTiles()}</div>
+          </div>
+          <div>
+            <div className="card">
+              {hasBill ? cashierBillPanel() : (
+                <div className="empty-state" style={{padding:'30px 10px'}}>
+                  <div className="glyph">🧾</div>เลือกโต๊ะที่มีบิลเพื่อคิดเงิน
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        false,
+        [
+          {icon:'🏠', label:'หน้าหลัก', active:false},
+          {icon:'💳', label:'แคชเชียร์', active:true},
+          {icon:'🧾', label:'ประวัติ', active:false},
+        ]
+      )}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
 }
-render();
-</script>
-</body>
-</html>

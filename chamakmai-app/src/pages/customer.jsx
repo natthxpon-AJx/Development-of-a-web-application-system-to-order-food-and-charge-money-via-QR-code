@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ร้านชาแมกไม้ — ลูกค้า</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+
+const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
     --cream-100:#F3F4F6; --cream-050:#FFFFFF; --paper:#FFFFFF;
@@ -45,10 +39,7 @@
   .btn:disabled{opacity:.4;cursor:not-allowed;}
 
   .phone-wrap{display:flex;justify-content:center;}
-  .phone{
-    width:380px;background:var(--paper);border-radius:34px;border:8px solid var(--navy-900);
-    box-shadow:0 20px 45px -18px rgba(17,24,39,0.45);overflow:hidden;position:relative;
-  }
+  .phone{width:380px;background:var(--paper);border-radius:34px;border:8px solid var(--navy-900);box-shadow:0 20px 45px -18px rgba(17,24,39,0.45);overflow:hidden;position:relative;}
   .phone-screen{height:720px;display:flex;flex-direction:column;background:var(--cream-050);}
   .phone-header{background:var(--brown-700);color:#fff;padding:16px 18px 14px;}
   .phone-header .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
@@ -59,31 +50,17 @@
   .phone-header .header-action{border:none;background:rgba(255,255,255,0.16);color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;}
   .phone-header .header-action.active{background:var(--amber);color:#fff;}
   .phone-content{flex:1;overflow-y:auto;padding:14px 14px 90px;}
-  .phone-tabbar{
-    position:absolute;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);
-    display:flex;padding:8px 10px 12px;gap:6px;
-  }
-  .phone-tabbar button{
-    flex:1;background:transparent;border:none;padding:8px 4px;border-radius:10px;font-size:11.5px;font-weight:700;color:var(--ink-soft);
-    display:flex;flex-direction:column;align-items:center;gap:3px;
-  }
+  .phone-tabbar{position:absolute;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);display:flex;padding:8px 10px 12px;gap:6px;}
+  .phone-tabbar button{flex:1;background:transparent;border:none;padding:8px 4px;border-radius:10px;font-size:11.5px;font-weight:700;color:var(--ink-soft);display:flex;flex-direction:column;align-items:center;gap:3px;}
   .phone-tabbar button.active{color:var(--amber-dark);background:#FBEEDB;}
   .phone-tabbar .ico{font-size:17px;}
 
-  .search-box{
-    display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:12px;
-    padding:9px 12px;margin-bottom:12px;color:var(--ink-soft);font-size:13.5px;
-  }
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:12px;color:var(--ink-soft);font-size:13.5px;}
   .cat-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px;}
-  .cat-scroll button{
-    white-space:nowrap;border:1px solid var(--line);background:var(--paper);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;color:var(--brown-800);
-  }
+  .cat-scroll button{white-space:nowrap;border:1px solid var(--line);background:var(--paper);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;color:var(--brown-800);}
   .cat-scroll button.active{background:var(--amber);color:#fff;border-color:var(--amber);}
 
-  .menu-item{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--yellow-card);border:1px solid #F4E9A8;
-    border-radius:12px;padding:9px 12px;margin-bottom:9px;
-  }
+  .menu-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--yellow-card);border:1px solid #F4E9A8;border-radius:12px;padding:9px 12px;margin-bottom:9px;}
   .menu-item.soldout{opacity:.45;}
   .menu-item .mi-left{display:flex;align-items:center;gap:10px;}
   .menu-item .mi-thumb{width:38px;height:38px;border-radius:10px;background:var(--orange-100);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;}
@@ -111,23 +88,15 @@
 
   .divider{border:none;border-top:1px solid var(--line);margin:16px 0;}
   .muted{color:var(--ink-soft);}
-  .toast{
-    position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--brown-900);color:#fff;
-    padding:12px 22px;border-radius:30px;font-size:13.5px;font-weight:600;box-shadow:0 10px 25px -10px rgba(0,0,0,0.4);z-index:200;
-  }
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--brown-900);color:#fff;padding:12px 22px;border-radius:30px;font-size:13.5px;font-weight:600;box-shadow:0 10px 25px -10px rgba(0,0,0,0.4);z-index:200;}
 
   @media (max-width:900px){
     .phone{width:100%;border-radius:0;border-width:0;}
     .stage{padding:0;}
   }
-</style>
-</head>
-<body>
-<div id="app"></div>
+`;
 
-<script>
-/* ============================= DATA ============================= */
-let MENU = {
+const MENU = {
   "เครื่องดื่ม": [
     {id:'d1',name:'ชาไทย',price:30,sweet:true,active:true},
     {id:'d2',name:'ชาเขียว',price:30,sweet:true,active:true},
@@ -168,276 +137,377 @@ let MENU = {
   ]
 };
 
-let orderSeq = 2;
-let orders = [
+const CAT_EMOJI = {"เครื่องดื่ม":"🥤","ของทานเล่น":"🍟","ขนมปัง":"🍞","อาหาร":"🍚","ผลไม้":"🥭"};
+
+const initialOrders = [
   {id:1, dispId:'#0001', table:5, time:'18:20', status:'done', paid:false,
     items:[
       {name:'ชาเขียวมัจฉะ', note:'หวานปกติ', price:40, qty:1},
       {name:'ไส้กรอกแดง', note:'ซอสมะเขือเทศ', price:35, qty:1},
     ]},
 ];
-let payments = [
+
+const initialPayments = [
   {table:2, amount:80, method:'qr', time:'18:05', items:[{name:'มาม่าต้มยำน้ำข้น',qty:1,price:50},{name:'ไมโล',qty:1,price:30}]},
   {table:5, amount:160, method:'cash', time:'18:30', items:[{name:'ชาไทย',qty:1,price:35},{name:'นมน้ำตาล',qty:1,price:25},{name:'ข้าวไข่เจียวไก่สับ',qty:1,price:25},{name:'ชาเขียวมัจฉะ',qty:1,price:40},{name:'ไส้กรอกแดง',qty:1,price:35}]},
 ];
 
-/* ============================= STATE ============================= */
-let state = {
-  toast: null,
-  customer: { table:5, tab:'menu', category:'เครื่องดื่ม', search:'', cart:[], detailItem:null, opts:{} },
-};
-
-function setState(patch){ state = {...state, ...patch}; render(); }
-function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; render(); }, 1800); }
 function money(n){ return '฿' + n.toLocaleString('th-TH', {minimumFractionDigits: n%1? 2:0}); }
-
-/* ============================= CUSTOMER LOGIC ============================= */
-function custCartTotal(){ return state.customer.cart.reduce((s,c)=>s+c.price*c.qty,0); }
-
-function renderCustomer(){
-  const c = state.customer;
-  return `
-  <div class="phone-wrap">
-    <div class="phone">
-      <div class="phone-screen">
-        ${custHeader()}
-        <div class="phone-content">
-          ${c.tab==='menu' ? custMenuTab() : ''}
-          ${c.tab==='cart' ? custCartTab() : ''}
-          ${c.tab==='status' ? custStatusTab() : ''}
-          ${c.tab==='history' ? custHistoryTab() : ''}
-        </div>
-        ${custTabbar()}
-      </div>
-      ${c.detailItem ? custDetailSheet() : ''}
-    </div>
-  </div>`;
-}
-
-function custHeader(){
-  const c = state.customer;
-  const titles = {menu:'ร้านชาแมกไม้', cart:'ตะกร้าของฉัน', status:'สถานะออเดอร์', history:'ประวัติการสั่งซื้อ'};
-  return `
-  <div class="phone-header">
-    <div class="row1">
-      <div class="left-group">
-        <div class="shopname">${titles[c.tab]}</div>
-        <div class="table-chip">โต๊ะ ${c.table}</div>
-      </div>
-      <div class="header-actions">
-        <button class="header-action ${c.tab==='cart'?'active':''}" onclick="custSetTab('cart')">🧺 ตะกร้า${c.cart.length?` (${c.cart.length})`:''}</button>
-        <button class="header-action ${c.tab==='history'?'active':''}" onclick="custSetTab('history')">📜 ประวัติ</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function custMenuTab(){
-  const c = state.customer;
-  const cats = Object.keys(MENU);
-  const items = MENU[c.category].filter(it => it.name.includes(c.search));
-  return `
-  <div class="search-box">
-    <span>🔍</span>
-    <input oninput="custSearch(this.value)" value="${c.search}" placeholder="ค้นหาเมนู..." style="border:none;background:transparent;outline:none;flex:1;font-family:inherit;font-size:13.5px;">
-  </div>
-  <div class="cat-scroll">
-    ${cats.map(cat=>`<button class="${cat===c.category?'active':''}" onclick="custSetCat('${cat}')">${CAT_EMOJI[cat]||''} ${cat}</button>`).join('')}
-  </div>
-  <div>
-    ${items.length? items.map(it=>custMenuRow(it)).join('') : `<div class="empty-state"><div class="glyph">🍽️</div>ไม่พบเมนูที่ค้นหา</div>`}
-  </div>`;
-}
-
-const CAT_EMOJI = {"เครื่องดื่ม":'🥤',"ของทานเล่น":'🍟',"ขนมปัง":'🍞',"อาหาร":'🍚',"ผลไม้":'🥭'};
-function custMenuRow(it){
-  const disabled = !it.active;
-  const emoji = CAT_EMOJI[state.customer.category] || '🍽️';
-  return `
-  <div class="menu-item ${disabled?'soldout':''}">
-    <div class="mi-left">
-      <div class="mi-thumb">${emoji}</div>
-      <div>
-        <div class="mi-name">${it.name}</div>
-        <div class="mi-price">${money(it.price)}</div>
-        ${disabled?'<div style="font-size:11px;color:var(--clay);font-weight:700;margin-top:2px;">หมดชั่วคราว</div>':''}
-      </div>
-    </div>
-    <button class="add-mini" ${disabled?'disabled':''} onclick="custOpenItem('${it.id}')">+</button>
-  </div>`;
-}
-
-function custDetailSheet(){
-  const c = state.customer;
-  const it = findMenuItem(c.detailItem);
-  if(!it) return '';
-  const o = c.opts;
-  return `
-  <div style="position:absolute;inset:0;background:rgba(44,33,24,0.45);display:flex;align-items:flex-end;z-index:60;" onclick="if(event.target===this) custCloseItem()">
-    <div style="background:var(--paper);width:100%;border-radius:20px 20px 0 0;padding:20px 18px 22px;max-height:88%;overflow-y:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
-        <div>
-          <div style="font-weight:700;font-size:19px;">${it.name}</div>
-          <div class="mi-price" style="font-size:15px;margin-top:3px;">${money(it.price)}</div>
-        </div>
-        <button onclick="custCloseItem()" style="border:none;background:var(--cream-100);width:30px;height:30px;border-radius:50%;font-size:15px;">✕</button>
-      </div>
-      <hr class="divider">
-      ${it.sweet? `
-      <div style="margin-bottom:16px;">
-        <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">ระดับความหวาน</div>
-        <div class="pill-group">
-          ${['หวานน้อย','หวานปกติ','หวานมาก'].map(v=>`<button class="pill ${o.sweet===v?'active':''}" onclick="custSetOpt('sweet','${v}')">${v}</button>`).join('')}
-        </div>
-      </div>`:''}
-      ${it.spicy? `
-      <div style="margin-bottom:16px;">
-        <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">ระดับความเผ็ด</div>
-        <div class="pill-group">
-          ${['ไม่เผ็ด','เผ็ดน้อย','เผ็ดปกติ','เผ็ดมาก'].map(v=>`<button class="pill ${o.spicy===v?'active':''}" onclick="custSetOpt('spicy','${v}')">${v}</button>`).join('')}
-        </div>
-      </div>`:''}
-      ${it.sauce? `
-      <div style="margin-bottom:16px;">
-        <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">เลือกซอส</div>
-        <div class="pill-group">
-          ${['ซอสมะเขือเทศ','ซอสพริก'].map(v=>`<button class="pill ${o.sauce===v?'active':''}" onclick="custSetOpt('sauce','${v}')">${v}</button>`).join('')}
-        </div>
-      </div>`:''}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-        <div style="font-weight:700;font-size:13.5px;">จำนวน</div>
-        <div class="qty-stepper">
-          <button onclick="custQty(-1)">−</button>
-          <span style="min-width:16px;text-align:center;font-weight:700;">${o.qty||1}</span>
-          <button onclick="custQty(1)">+</button>
-        </div>
-      </div>
-      <button class="btn btn-primary btn-block" style="margin-top:18px;padding:13px;" onclick="custAddToCart()">
-        เพิ่มลงตะกร้า · ${money(custDetailPrice())}
-      </button>
-    </div>
-  </div>`;
-}
-
-function findMenuItem(id){ for(const k in MENU){ const f=MENU[k].find(x=>x.id===id); if(f) return {...f, category:k}; } return null; }
-
-function custDetailPrice(){
-  const it = findMenuItem(state.customer.detailItem);
-  const qty = state.customer.opts.qty||1;
-  return it ? it.price*qty : 0;
-}
-
-function custCartTab(){
-  const c = state.customer;
-  if(!c.cart.length){
-    return `<div class="empty-state"><div class="glyph">🧺</div>ยังไม่มีสินค้าในตะกร้า<br><button class="btn btn-ghost" style="margin-top:14px;" onclick="custSetTab('menu')">ไปเลือกเมนู</button></div>`;
+function findMenuItem(id){
+  for(const category in MENU){
+    const item = MENU[category].find(x=>x.id===id);
+    if(item) return {...item, category};
   }
-  return `
-  <div>
-    ${c.cart.map((it,i)=>`
-      <div class="cart-row">
-        <div>
-          <div class="cn">${it.name} ${it.qty>1?`×${it.qty}`:''}</div>
-          <div class="cs">${it.note||''}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-          <div class="cp">${money(it.price*it.qty)}</div>
-          <button onclick="custRemoveCart(${i})" style="border:none;background:none;color:var(--clay);font-size:11.5px;font-weight:700;">ลบ</button>
-        </div>
-      </div>`).join('')}
-  </div>
-  <div style="margin-top:16px;display:flex;justify-content:space-between;font-weight:700;font-size:15px;">
-    <span>ยอดรวม</span><span>${money(custCartTotal())}</span>
-  </div>
-  <button class="btn btn-primary btn-block" style="margin-top:14px;padding:13px;" onclick="custConfirmOrder()">ยืนยันรายการ</button>
-  `;
+  return null;
 }
 
-function custStatusTab(){
-  const c = state.customer;
-  const myOrders = orders.filter(o=>o.table===c.table).sort((a,b)=>b.id-a.id);
-  if(!myOrders.length) return `<div class="empty-state"><div class="glyph">🧾</div>ยังไม่มีออเดอร์ที่กำลังดำเนินการ</div>`;
-  const labels = {queue:['รอคิว','badge-queue'], cooking:['กำลังทำ','badge-cooking'], done:['เสร็จแล้ว','badge-done']};
-  return myOrders.map(o=>`
-    <div class="status-block">
-      <div class="sh">
-        <div style="font-weight:700;font-size:13.5px;">ออเดอร์ ${o.dispId} · ${o.time}</div>
-        <span class="badge ${labels[o.status][1]}">${labels[o.status][0]}</span>
-      </div>
-      ${o.items.map(it=>`<div style="font-size:13px;display:flex;justify-content:space-between;padding:3px 0;"><span>${it.name} ${it.note?`(${it.note})`:''} ×${it.qty}</span><span>${money(it.price*it.qty)}</span></div>`).join('')}
-      ${o.paid? `<div style="margin-top:8px;font-size:11.5px;color:var(--jade);font-weight:700;">✓ ชำระเงินแล้ว</div>` : `<div style="margin-top:8px;font-size:11.5px;color:var(--ink-soft);">หากต้องการเช็คบิล กรุณาไปที่เคาน์เตอร์แคชเชียร์</div>`}
-    </div>`).join('');
-}
-
-function custHistoryTab(){
-  const c = state.customer;
-  const paidForTable = payments.filter(p=>p.table===c.table);
-  if(!paidForTable.length) return `<div class="empty-state"><div class="glyph">📜</div>ยังไม่มีประวัติการสั่งซื้อ</div>`;
-  return paidForTable.map(p=>`
-    <div class="status-block">
-      <div class="sh"><div style="font-weight:700;font-size:13.5px;">บิลโต๊ะ ${p.table} · ${p.time}</div><span class="badge badge-done">${p.method==='qr'?'จ่ายผ่าน QR':'เงินสด'}</span></div>
-      ${p.items.map(it=>`<div style="font-size:13px;display:flex;justify-content:space-between;padding:3px 0;"><span>${it.name} ×${it.qty}</span><span>${money(it.price*it.qty)}</span></div>`).join('')}
-      <div style="margin-top:6px;font-weight:700;display:flex;justify-content:space-between;"><span>ยอดรวม</span><span>${money(p.amount)}</span></div>
-    </div>`).join('');
-}
-
-function custTabbar(){
-  const c = state.customer;
-  const items = [['menu','🍜','เมนู'],['status','🧾','สถานะ']];
-  return `<div class="phone-tabbar">
-    ${items.map(([k,ico,label])=>`<button class="${c.tab===k?'active':''}" onclick="custSetTab('${k}')"><span class="ico">${ico}</span>${label}</button>`).join('')}
-  </div>`;
-}
-
-function custSetTab(t){ state.customer.tab=t; render(); }
-function custSetCat(cat){ state.customer.category=cat; render(); }
-function custSearch(v){ state.customer.search=v; render(); }
-function custOpenItem(id){
-  const it = findMenuItem(id);
-  const opts = {qty:1};
-  if(it.sweet) opts.sweet='หวานปกติ';
-  if(it.spicy) opts.spicy='เผ็ดปกติ';
-  if(it.sauce) opts.sauce='ซอสมะเขือเทศ';
-  state.customer.detailItem = id; state.customer.opts = opts; render();
-}
-function custCloseItem(){ state.customer.detailItem=null; render(); }
-function custSetOpt(k,v){ state.customer.opts[k]=v; render(); }
-function custQty(d){ const o=state.customer.opts; o.qty=Math.max(1,(o.qty||1)+d); render(); }
-function custAddToCart(){
-  const it = findMenuItem(state.customer.detailItem);
-  const o = state.customer.opts;
-  const noteParts = [o.sweet,o.spicy,o.sauce].filter(Boolean);
-  state.customer.cart.push({name:it.name, price:it.price, qty:o.qty||1, note:noteParts.join(' · ')});
-  state.customer.detailItem=null;
-  showToast(`เพิ่ม "${it.name}" ลงตะกร้าแล้ว`);
-}
-function custRemoveCart(i){ state.customer.cart.splice(i,1); render(); }
-function custConfirmOrder(){
-  const c = state.customer;
-  if(!c.cart.length) return;
-  orderSeq++;
-  const id = orders.length? Math.max(...orders.map(o=>o.id))+1 : 1;
-  orders.push({
-    id, dispId:'#'+String(orderSeq).padStart(4,'0'), table:c.table,
-    time:new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),
-    status:'queue', paid:false,
-    items: c.cart.map(it=>({name:it.name, note:it.note, price:it.price, qty:it.qty}))
+export default function Customer(){
+  const [orders, setOrders] = useState(initialOrders);
+  const [payments, setPayments] = useState(initialPayments);
+  const [customer, setCustomer] = useState({
+    table:5,
+    tab:'menu',
+    category:'เครื่องดื่ม',
+    search:'',
+    cart:[],
+    detailItem:null,
+    opts:{},
   });
-  c.cart = [];
-  c.tab = 'status';
-  showToast('ส่งออเดอร์เข้าครัวแล้ว 🎉');
-}
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
-/* ============================= ROOT RENDER ============================= */
-function render(){
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="stage"><div class="stage-inner">${renderCustomer()}</div></div>
-    ${state.toast? `<div class="toast">${state.toast}</div>` : ''}
-  `;
-}
+  useEffect(() => {
+    document.title = 'ร้านชาแมกไม้ — ลูกค้า';
+    if (!document.getElementById('cm-google-fonts')){
+      const link = document.createElement('link');
+      link.id = 'cm-google-fonts';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap';
+      document.head.appendChild(link);
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
 
-render();
-</script>
-</body>
-</html>
+  const filteredItems = useMemo(() => {
+    return MENU[customer.category].filter(it => it.name.includes(customer.search));
+  }, [customer.category, customer.search]);
+
+  const cartTotal = useMemo(() => customer.cart.reduce((sum, item) => sum + item.price * item.qty, 0), [customer.cart]);
+  const myOrders = useMemo(() => orders.filter(o => o.table === customer.table).sort((a,b) => b.id - a.id), [orders, customer.table]);
+  const paidForTable = useMemo(() => payments.filter(p => p.table === customer.table), [payments, customer.table]);
+  const detailItem = customer.detailItem ? findMenuItem(customer.detailItem) : null;
+  const detailPrice = useMemo(() => {
+    if (!detailItem) return 0;
+    return detailItem.price * (customer.opts.qty || 1);
+  }, [detailItem, customer.opts.qty]);
+
+  function setCustomerPatch(patch){ setCustomer(prev => ({...prev, ...patch})); }
+  function setCustomerOpts(patch){ setCustomer(prev => ({...prev, opts:{...prev.opts, ...patch}})); }
+
+  function showToast(msg){
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1800);
+  }
+
+  function custSetTab(tab){ setCustomerPatch({tab}); }
+  function custSetCat(category){ setCustomerPatch({category, search:''}); }
+  function custSearch(value){ setCustomerPatch({search:value}); }
+  function custOpenItem(id){
+    const item = findMenuItem(id);
+    if (!item) return;
+    const opts = {qty:1};
+    if(item.sweet) opts.sweet='หวานปกติ';
+    if(item.spicy) opts.spicy='เผ็ดปกติ';
+    if(item.sauce) opts.sauce='ซอสมะเขือเทศ';
+    setCustomer(prev => ({...prev, detailItem:id, opts}));
+  }
+  function custCloseItem(){ setCustomerPatch({detailItem:null}); }
+  function custSetOpt(key, value){ setCustomerOpts({[key]: value}); }
+  function custQty(delta){ setCustomerOpts({qty: Math.max(1, (customer.opts.qty || 1) + delta)}); }
+
+  function custAddToCart(){
+    if (!detailItem) return;
+    const noteParts = [customer.opts.sweet, customer.opts.spicy, customer.opts.sauce].filter(Boolean);
+    const newItem = {
+      name: detailItem.name,
+      price: detailItem.price,
+      qty: customer.opts.qty || 1,
+      note: noteParts.join(' · '),
+    };
+    setCustomer(prev => ({...prev, cart:[...prev.cart, newItem], detailItem:null, opts:{}}));
+    showToast(`เพิ่ม "${detailItem.name}" ลงตะกร้าแล้ว`);
+  }
+
+  function custRemoveCart(index){
+    setCustomer(prev => ({...prev, cart: prev.cart.filter((_, i) => i !== index)}));
+  }
+
+  const orderSeq = useRef(2);
+  function custConfirmOrder(){
+    if (!customer.cart.length) return;
+    orderSeq.current += 1;
+    const nextId = orders.length ? Math.max(...orders.map(o => o.id)) + 1 : 1;
+    const nextOrder = {
+      id: nextId,
+      dispId: '#' + String(orderSeq.current).padStart(4, '0'),
+      table: customer.table,
+      time: new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),
+      status:'queue',
+      paid:false,
+      items: customer.cart.map(it => ({name:it.name, note:it.note, price:it.price, qty:it.qty})),
+    };
+    setOrders(prev => [...prev, nextOrder]);
+    setCustomer(prev => ({...prev, cart: [], tab:'status'}));
+    showToast('ส่งออเดอร์เข้าครัวแล้ว 🎉');
+  }
+
+  function appWindow(title, body, dark, sidebarIcons){
+    return (
+      <div className="app-window">
+        <div className="app-titlebar">
+          <div className="tleft"><span className="dot"></span>CM · {title}</div>
+          <div className="online">Online</div>
+        </div>
+        <div className="app-flex">
+          <div className="app-sidebar">
+            {sidebarIcons.map(i => (
+              <button key={i.label} className={i.active ? 'active' : ''} type="button" title={i.label || ''}>{i.icon}</button>
+            ))}
+          </div>
+          <div className="app-body-wrap"><div className={`app-body ${dark ? 'dark' : ''}`}>{body}</div></div>
+        </div>
+      </div>
+    );
+  }
+
+  function custHeader(){
+    const titles = {menu:'ร้านชาแมกไม้', cart:'ตะกร้าของฉัน', status:'สถานะออเดอร์', history:'ประวัติการสั่งซื้อ'};
+    return (
+      <div className="phone-header">
+        <div className="row1">
+          <div className="left-group">
+            <div className="shopname">{titles[customer.tab]}</div>
+            <div className="table-chip">โต๊ะ {customer.table}</div>
+          </div>
+          <div className="header-actions">
+            <button type="button" className={`header-action ${customer.tab==='cart' ? 'active' : ''}`} onClick={() => custSetTab('cart')}>🧺 ตะกร้า{customer.cart.length ? ` (${customer.cart.length})` : ''}</button>
+            <button type="button" className={`header-action ${customer.tab==='history' ? 'active' : ''}`} onClick={() => custSetTab('history')}>📜 ประวัติ</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function custMenuTab(){
+    return (
+      <>
+        <div className="search-box">
+          <span>🔍</span>
+          <input type="text" onChange={e => custSearch(e.target.value)} value={customer.search} placeholder="ค้นหาเมนู..." style={{border:'none',background:'transparent',outline:'none',flex:1,fontFamily:'inherit',fontSize:13.5}} />
+        </div>
+        <div className="cat-scroll">
+          {Object.keys(MENU).map(cat => (
+            <button key={cat} type="button" className={cat===customer.category ? 'active' : ''} onClick={() => custSetCat(cat)}>{CAT_EMOJI[cat] || ''} {cat}</button>
+          ))}
+        </div>
+        <div>
+          {filteredItems.length ? filteredItems.map(it => (
+            <div key={it.id} className={`menu-item ${!it.active ? 'soldout' : ''}`}>
+              <div className="mi-left">
+                <div className="mi-thumb">{CAT_EMOJI[customer.category] || '🍽️'}</div>
+                <div>
+                  <div className="mi-name">{it.name}</div>
+                  <div className="mi-price">{money(it.price)}</div>
+                  {!it.active ? <div style={{fontSize:11,color:'var(--clay)',fontWeight:700,marginTop:2}}>หมดชั่วคราว</div> : null}
+                </div>
+              </div>
+              <button type="button" className="add-mini" disabled={!it.active} onClick={() => custOpenItem(it.id)}>+</button>
+            </div>
+          )) : (
+            <div className="empty-state"><div className="glyph">🍽️</div>ไม่พบเมนูที่ค้นหา</div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  function custCartTab(){
+    if (!customer.cart.length){
+      return (
+        <div className="empty-state">
+          <div className="glyph">🧺</div>ยังไม่มีสินค้าในตะกร้า
+          <button type="button" className="btn btn-ghost" style={{marginTop:14}} onClick={() => custSetTab('menu')}>ไปเลือกเมนู</button>
+        </div>
+      );
+    }
+    return (
+      <>
+        <div>
+          {customer.cart.map((it, index) => (
+            <div key={index} className="cart-row">
+              <div>
+                <div className="cn">{it.name} {it.qty > 1 ? `×${it.qty}` : ''}</div>
+                <div className="cs">{it.note || ''}</div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+                <div className="cp">{money(it.price * it.qty)}</div>
+                <button type="button" onClick={() => custRemoveCart(index)} style={{border:'none',background:'none',color:'var(--clay)',fontSize:11.5,fontWeight:700}}>ลบ</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:16,display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:15}}>
+          <span>ยอดรวม</span><span>{money(cartTotal)}</span>
+        </div>
+        <button type="button" className="btn btn-primary btn-block" style={{marginTop:14,padding:13}} onClick={custConfirmOrder}>ยืนยันรายการ</button>
+      </>
+    );
+  }
+
+  function custStatusTab(){
+    if (!myOrders.length){
+      return (
+        <div className="empty-state"><div className="glyph">🧾</div>ยังไม่มีออเดอร์ที่กำลังดำเนินการ</div>
+      );
+    }
+    const labels = {queue:['รอคิว','badge-queue'], cooking:['กำลังทำ','badge-cooking'], done:['เสร็จแล้ว','badge-done']};
+    return (
+      <>
+        {myOrders.map(o => (
+          <div key={o.id} className="status-block">
+            <div className="sh">
+              <div style={{fontWeight:700,fontSize:13.5}}>ออเดอร์ {o.dispId} · {o.time}</div>
+              <span className={`badge ${labels[o.status][1]}`}>{labels[o.status][0]}</span>
+            </div>
+            {o.items.map((it, idx) => (
+              <div key={idx} style={{fontSize:13,display:'flex',justifyContent:'space-between',padding:'3px 0'}}>
+                <span>{it.name} {it.note ? `(${it.note})` : ''} ×{it.qty}</span>
+                <span>{money(it.price * it.qty)}</span>
+              </div>
+            ))}
+            {o.paid ? (
+              <div style={{marginTop:8,fontSize:11.5,color:'var(--jade)',fontWeight:700}}>✓ ชำระเงินแล้ว</div>
+            ) : (
+              <div style={{marginTop:8,fontSize:11.5,color:'var(--ink-soft)'}}>หากต้องการเช็คบิล กรุณาไปที่เคาน์เตอร์แคชเชียร์</div>
+            )}
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  function custHistoryTab(){
+    if (!paidForTable.length){
+      return (
+        <div className="empty-state"><div className="glyph">📜</div>ยังไม่มีประวัติการสั่งซื้อ</div>
+      );
+    }
+    return (
+      <>
+        {paidForTable.map((p, index) => (
+          <div key={index} className="status-block">
+            <div className="sh"><div style={{fontWeight:700,fontSize:13.5}}>บิลโต๊ะ {p.table} · {p.time}</div><span className="badge badge-done">{p.method === 'qr' ? 'จ่ายผ่าน QR' : 'เงินสด'}</span></div>
+            {p.items.map((it, idx) => (
+              <div key={idx} style={{fontSize:13,display:'flex',justifyContent:'space-between',padding:'3px 0'}}>
+                <span>{it.name} ×{it.qty}</span><span>{money(it.price * it.qty)}</span>
+              </div>
+            ))}
+            <div style={{marginTop:6,fontWeight:700,display:'flex',justifyContent:'space-between'}}><span>ยอดรวม</span><span>{money(p.amount)}</span></div>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  function custTabbar(){
+    const tabs = [['menu','🍜','เมนู'],['status','🧾','สถานะ']];
+    return (
+      <div className="phone-tabbar">
+        {tabs.map(([key, icon, label]) => (
+          <button key={key} type="button" className={customer.tab===key ? 'active' : ''} onClick={() => custSetTab(key)}>
+            <span className="ico">{icon}</span>{label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div id="app">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+      <div className="stage">
+        <div className="stage-inner">
+          <div className="phone-wrap">
+            <div className="phone">
+              <div className="phone-screen">
+                {custHeader()}
+                <div className="phone-content">
+                  {customer.tab === 'menu' ? custMenuTab() : null}
+                  {customer.tab === 'cart' ? custCartTab() : null}
+                  {customer.tab === 'status' ? custStatusTab() : null}
+                  {customer.tab === 'history' ? custHistoryTab() : null}
+                </div>
+                {custTabbar()}
+              </div>
+              {customer.detailItem ? (
+                <div style={{position:'absolute',inset:0,background:'rgba(44,33,24,0.45)',display:'flex',alignItems:'flex-end',zIndex:60}} onClick={e => { if (e.target === e.currentTarget) custCloseItem(); }}>
+                  <div style={{background:'var(--paper)',width:'100%',borderRadius:'20px 20px 0 0',padding:'20px 18px 22px',maxHeight:'88%',overflowY:'auto'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:19}}>{detailItem.name}</div>
+                        <div className="mi-price" style={{fontSize:15,marginTop:3}}>{money(detailItem.price)}</div>
+                      </div>
+                      <button type="button" onClick={custCloseItem} style={{border:'none',background:'var(--cream-100)',width:30,height:30,borderRadius:'50%',fontSize:15}}>✕</button>
+                    </div>
+                    <hr className="divider" />
+                    {detailItem.sweet ? (
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>ระดับความหวาน</div>
+                        <div className="pill-group">
+                          {['หวานน้อย','หวานปกติ','หวานมาก'].map(value => (
+                            <button key={value} type="button" className={`pill ${customer.opts.sweet===value ? 'active' : ''}`} onClick={() => custSetOpt('sweet', value)}>{value}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {detailItem.spicy ? (
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>ระดับความเผ็ด</div>
+                        <div className="pill-group">
+                          {['ไม่เผ็ด','เผ็ดน้อย','เผ็ดปกติ','เผ็ดมาก'].map(value => (
+                            <button key={value} type="button" className={`pill ${customer.opts.spicy===value ? 'active' : ''}`} onClick={() => custSetOpt('spicy', value)}>{value}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {detailItem.sauce ? (
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>เลือกซอส</div>
+                        <div className="pill-group">
+                          {['ซอสมะเขือเทศ','ซอสพริก'].map(value => (
+                            <button key={value} type="button" className={`pill ${customer.opts.sauce===value ? 'active' : ''}`} onClick={() => custSetOpt('sauce', value)}>{value}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
+                      <div style={{fontWeight:700,fontSize:13.5}}>จำนวน</div>
+                      <div className="qty-stepper">
+                        <button type="button" onClick={() => custQty(-1)}>−</button>
+                        <span style={{minWidth:16,textAlign:'center',fontWeight:700}}>{customer.opts.qty || 1}</span>
+                        <button type="button" onClick={() => custQty(1)}>+</button>
+                      </div>
+                    </div>
+                    <button type="button" className="btn btn-primary btn-block" style={{marginTop:18,padding:13}} onClick={custAddToCart}>เพิ่มลงตะกร้า · {money(detailPrice)}</button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}

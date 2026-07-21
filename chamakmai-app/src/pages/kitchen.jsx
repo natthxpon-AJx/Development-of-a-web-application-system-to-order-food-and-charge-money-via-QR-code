@@ -1,16 +1,10 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ร้านชาแมกไม้ — ระบบครัว</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+
+const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
     --cream-100:#F3F4F6; --cream-050:#FFFFFF; --paper:#FFFFFF;
-    --amber:#D97706; --amber-dark:#B45F04; --amber-bg:#FEF3C7;
+    --amber:#D97706; --amber-dark:#B45F04;
     --yellow-card:#FEF9C3; --orange-100:#FDE7CC;
     --jade:#16A34A; --jade-bg:#DCFCE7; --jade-soft:#BBF7D0;
     --clay:#DC2626; --clay-bg:#FEE2E2;
@@ -73,13 +67,9 @@
   .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
 
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--brown-900);color:#fff;padding:12px 22px;border-radius:30px;font-size:13.5px;font-weight:600;box-shadow:0 10px 25px -10px rgba(0,0,0,0.4);z-index:200;}
-</style>
-</head>
-<body>
-<div id="app"></div>
+`;
 
-<script>
-let orders = [
+const initialOrders = [
   {id:1, dispId:'#0001', table:5, time:'18:20', status:'done', paid:false,
     items:[
       {name:'ชาเขียวมัจฉะ', note:'หวานปกติ', price:40, qty:1},
@@ -87,65 +77,100 @@ let orders = [
     ]},
 ];
 
-let state = { toast: null };
+function money(n){ return '฿' + n.toLocaleString('th-TH', {minimumFractionDigits: n%1? 2:0}); }
 
-function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; render(); }, 1800); }
+export default function Kitchen(){
+  const [orders, setOrders] = useState(initialOrders);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
-function appWindow(title, body, dark, sidebarIcons){
-  const icons = sidebarIcons || [{icon:'🏠',active:false}];
-  return `
-  <div class="app-window">
-    <div class="app-titlebar">
-      <div class="tleft"><span class="dot"></span>CM · ${title}</div>
-      <div class="online">Online</div>
-    </div>
-    <div class="app-flex">
-      <div class="app-sidebar">
-        ${icons.map(i=>`<button class="${i.active?'active':''}" ${i.onclick?`onclick="${i.onclick}"`:''} title="${i.label||''}">${i.icon}</button>`).join('')}
+  useEffect(() => {
+    document.title = 'ร้านชาแมกไม้ — ระบบครัว';
+    if (!document.getElementById('cm-google-fonts')){
+      const link = document.createElement('link');
+      link.id = 'cm-google-fonts';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap';
+      document.head.appendChild(link);
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
+
+  const sortedOrders = useMemo(() => {
+    const active = orders.filter(o => o.status !== 'done').concat(orders.filter(o => o.status === 'done').slice(-4).reverse());
+    return [...active].sort((a,b) => (a.status === 'done') - (b.status === 'done') || a.id - b.id);
+  }, [orders]);
+
+  function showToast(msg){
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1800);
+  }
+
+  function kitchenAdvance(id){
+    setOrders(prev => prev.map(o => {
+      if (o.id !== id) return o;
+      if (o.status === 'queue') return {...o, status:'cooking'};
+      if (o.status === 'cooking') return {...o, status:'done'};
+      return o;
+    }));
+    const order = orders.find(o => o.id === id);
+    if (order){
+      if (order.status === 'queue') showToast(`รับออเดอร์ ${order.dispId} แล้ว`);
+      else if (order.status === 'cooking') showToast(`ออเดอร์ ${order.dispId} เสร็จแล้ว 🍳`);
+    }
+  }
+
+  function appWindow(title, body, dark, sidebarIcons){
+    return (
+      <div className="app-window">
+        <div className="app-titlebar">
+          <div className="tleft"><span className="dot"></span>CM · {title}</div>
+          <div className="online">Online</div>
+        </div>
+        <div className="app-flex">
+          <div className="app-sidebar">
+            {sidebarIcons.map(i => (
+              <button key={i.label} className={i.active ? 'active' : ''} type="button" title={i.label || ''}>{i.icon}</button>
+            ))}
+          </div>
+          <div className="app-body-wrap"><div className={`app-body ${dark ? 'dark' : ''}`}>{body}</div></div>
+        </div>
       </div>
-      <div class="app-body-wrap"><div class="app-body ${dark?'dark':''}">${body}</div></div>
-    </div>
-  </div>`;
-}
+    );
+  }
 
-function renderKitchen(){
-  const active = orders.filter(o=>o.status!=='done').concat(orders.filter(o=>o.status==='done').slice(-4).reverse());
-  const sorted = active.sort((a,b)=> (a.status==='done')-(b.status==='done') || a.id-b.id);
-  return appWindow('Kitchen Display System (ครัว)', `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(210px,1fr));gap:14px;">
-      ${sorted.length? sorted.map(o=>kitchenTicket(o)).join('') : `<div class="muted" style="font-size:13px;padding:10px 0;">ไม่มีออเดอร์เข้ามาในขณะนี้</div>`}
-    </div>
-  `, true, [{icon:'🔥',label:'ครัว',active:false},{icon:'🍳',label:'ออเดอร์',active:true},{icon:'📋',label:'ประวัติ',active:false}]);
-}
-function kitchenTicket(o){
   const labels = {queue:['รอคิว','badge-queue'], cooking:['กำลังทำ','badge-cooking'], done:['เสร็จแล้ว','badge-done']};
-  return `
-  <div class="ticket st-${o.status}">
-    <div class="thead">
-      <span class="ttable">โต๊ะ ${o.table}</span>
-      <span class="tnum">${o.time}</span>
-    </div>
-    <div class="badge ${labels[o.status][1]}" style="margin-bottom:8px;">${labels[o.status][0]} · ${o.dispId}</div>
-    ${o.items.map(it=>`<div class="item-row"><span>${it.name} ${it.note?`<span class="note">(${it.note})</span>`:''}</span><span>×${it.qty}</span></div>`).join('')}
-    ${o.status==='queue' ? `<button class="btn btn-primary btn-block btn-sm" style="margin-top:10px;" onclick="kitchenAdvance(${o.id})">รับออเดอร์</button>` : ''}
-    ${o.status==='cooking' ? `<button class="btn btn-jade btn-block btn-sm" style="margin-top:10px;" onclick="kitchenAdvance(${o.id})">เสร็จสิ้น</button>` : ''}
-  </div>`;
-}
-function kitchenAdvance(id){
-  const o = orders.find(x=>x.id===id);
-  if(o.status==='queue'){ o.status='cooking'; showToast(`รับออเดอร์ ${o.dispId} แล้ว`); }
-  else if(o.status==='cooking'){ o.status='done'; showToast(`ออเดอร์ ${o.dispId} เสร็จแล้ว 🍳`); }
-  render();
-}
 
-function render(){
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="stage"><div class="stage-inner">${renderKitchen()}</div></div>
-    ${state.toast? `<div class="toast">${state.toast}</div>` : ''}
-  `;
+  return (
+    <div id="app">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+      {appWindow(
+        'Kitchen Display System (ครัว)',
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(210px,1fr))',gap:14}}>
+          {sortedOrders.length ? sortedOrders.map(o => (
+            <div key={o.id} className={`ticket st-${o.status}`}>
+              <div className="thead">
+                <span className="ttable">โต๊ะ {o.table}</span>
+                <span className="tnum">{o.time}</span>
+              </div>
+              <div className={`badge ${labels[o.status][1]}`} style={{marginBottom:8}}>{labels[o.status][0]} · {o.dispId}</div>
+              {o.items.map((it, idx) => (
+                <div key={idx} className="item-row"><span>{it.name} {it.note ? <span className="note">({it.note})</span> : null}</span><span>×{it.qty}</span></div>
+              ))}
+              {o.status === 'queue' ? <button type="button" className="btn btn-primary btn-block btn-sm" style={{marginTop:10}} onClick={() => kitchenAdvance(o.id)}>รับออเดอร์</button> : null}
+              {o.status === 'cooking' ? <button type="button" className="btn btn-jade btn-block btn-sm" style={{marginTop:10}} onClick={() => kitchenAdvance(o.id)}>เสร็จสิ้น</button> : null}
+            </div>
+          )) : <div className="muted" style={{fontSize:13,padding:'10px 0'}}>ไม่มีออเดอร์เข้ามาในขณะนี้</div>}
+        </div>,
+        true,
+        [
+          {icon:'🔥', label:'ครัว', active:false},
+          {icon:'🍳', label:'ออเดอร์', active:true},
+          {icon:'📋', label:'ประวัติ', active:false},
+        ]
+      )}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
 }
-render();
-</script>
-</body>
-</html>

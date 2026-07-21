@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ร้านชาแมกไม้ — ระบบเจ้าของร้าน</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+
+const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
     --cream-100:#F3F4F6; --cream-050:#FFFFFF; --paper:#FFFFFF;
@@ -79,7 +73,7 @@
   .role-chip.staff{background:var(--jade-bg);color:var(--jade);}
 
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
-  .field label{font-size:12px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:5px;}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
   .field input,.field select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13.5px;background:var(--cream-050);}
 
   .divider{border:none;border-top:1px solid var(--line);margin:16px 0;}
@@ -90,221 +84,275 @@
     .kpi-grid{grid-template-columns:repeat(2,1fr);}
     .form-grid{grid-template-columns:1fr;}
   }
-</style>
-</head>
-<body>
-<div id="app"></div>
+`;
 
-<script>
-let MENU = {
-  "เครื่องดื่ม": [{id:'d1',name:'ชาไทย',price:30,sweet:true,active:true},{id:'d2',name:'ชาเขียว',price:30,sweet:true,active:true},{id:'d3',name:'ชาเขียวมัจฉะ',price:40,sweet:true,active:true},{id:'d4',name:'ไมโล',price:30,sweet:true,active:true},{id:'d5',name:'โอวัลติน',price:30,sweet:true,active:true},{id:'d6',name:'นมชมพู',price:30,sweet:true,active:true}],
-  "ของทานเล่น": [{id:'s1',name:'กรอบโปะ',price:30,sauce:true,active:true},{id:'s2',name:'เฟรนช์ฟราย',price:35,sauce:true,active:true},{id:'s3',name:'ไส้กรอกแดง',price:35,sauce:true,active:true},{id:'s4',name:'ไส้กรอกไก่',price:40,sauce:true,active:true},{id:'s5',name:'ไส้กรอกอีสาน',price:40,sauce:true,active:true},{id:'s6',name:'นักเก็ต',price:40,sauce:true,active:true}],
-  "ขนมปัง": [{id:'b1',name:'นมน้ำตาล',price:25,active:true},{id:'b2',name:'นมไมโล',price:25,active:true},{id:'b3',name:'นูเทลลา',price:35,active:true},{id:'b4',name:'พริกเผาไก่หยอง',price:35,active:true},{id:'b5',name:'พิซซ่าปูอัดชีส',price:40,active:true},{id:'b6',name:'เนยกระเทียมชีส',price:40,active:true}],
-  "อาหาร": [{id:'f1',name:'ข้าวไข่เจียวไก่สับ',price:35,sauce:true,active:true},{id:'f2',name:'ข้าวไข่เจียวมาม่า',price:35,active:true},{id:'f3',name:'ข้าวไก่ทอดเทอริยากิ',price:50,active:true},{id:'f4',name:'มาม่าต้มยำน้ำข้น',price:50,spicy:true,active:true},{id:'f5',name:'มาม่าเส้นหมี่น้ำใส',price:35,active:true},{id:'f6',name:'ควกต้มโคล้ง',price:50,active:true},{id:'f7',name:'โซดาต้มยำ',price:50,spicy:true,active:true},{id:'f8',name:'มาม่าเผ็ด',price:65,spicy:true,active:true},{id:'f9',name:'ข้าวเปล่า',price:10,active:true}],
-  "ผลไม้": [{id:'p1',name:'มะม่วงทรงเครื่อง',price:35,active:true}]
+const initialMenu = {
+  "เครื่องดื่ม":[{id:'d1',name:'ชาไทย',price:30,sweet:true,active:true},{id:'d2',name:'ชาเขียว',price:30,sweet:true,active:true},{id:'d3',name:'ชาเขียวมัจฉะ',price:40,sweet:true,active:true},{id:'d4',name:'ไมโล',price:30,sweet:true,active:true},{id:'d5',name:'โอวัลติน',price:30,sweet:true,active:true},{id:'d6',name:'นมชมพู',price:30,sweet:true,active:true}],
+  "ของทานเล่น":[{id:'s1',name:'กรอบโปะ',price:30,sauce:true,active:true},{id:'s2',name:'เฟรนช์ฟราย',price:35,sauce:true,active:true},{id:'s3',name:'ไส้กรอกแดง',price:35,sauce:true,active:true},{id:'s4',name:'ไส้กรอกไก่',price:40,sauce:true,active:true},{id:'s5',name:'ไส้กรอกอีสาน',price:40,sauce:true,active:true},{id:'s6',name:'นักเก็ต',price:40,sauce:true,active:true}],
+  "ขนมปัง":[{id:'b1',name:'นมน้ำตาล',price:25,active:true},{id:'b2',name:'นมไมโล',price:25,active:true},{id:'b3',name:'นูเทลลา',price:35,active:true},{id:'b4',name:'พริกเผาไก่หยอง',price:35,active:true},{id:'b5',name:'พิซซ่าปูอัดชีส',price:40,active:true},{id:'b6',name:'เนยกระเทียมชีส',price:40,active:true}],
+  "อาหาร":[{id:'f1',name:'ข้าวไข่เจียวไก่สับ',price:35,sauce:true,active:true},{id:'f2',name:'ข้าวไข่เจียวมาม่า',price:35,active:true},{id:'f3',name:'ข้าวไก่ทอดเทอริยากิ',price:50,active:true},{id:'f4',name:'มาม่าต้มยำน้ำข้น',price:50,spicy:true,active:true},{id:'f5',name:'มาม่าเส้นหมี่น้ำใส',price:35,active:true},{id:'f6',name:'ควกต้มโคล้ง',price:50,active:true},{id:'f7',name:'โซดาต้มยำ',price:50,spicy:true,active:true},{id:'f8',name:'มาม่าเผ็ด',price:65,spicy:true,active:true},{id:'f9',name:'ข้าวเปล่า',price:10,active:true}],
+  "ผลไม้":[{id:'p1',name:'มะม่วงทรงเครื่อง',price:35,active:true}],
 };
 
-let staff = [
+const initialStaff = [
   {id:'01',name:'ใจดี ดีใจ',phone:'081-234-5678',role:'เจ้าของร้าน',level:'admin'},
   {id:'02',name:'สุพพัญญู',phone:'091-234-5678',role:'แคชเชียร์',level:'staff'},
   {id:'03',name:'ณัฐพล',phone:'061-234-5678',role:'ครัว',level:'staff'},
 ];
 
-let payments = [
+const initialPayments = [
   {table:2, amount:80, method:'qr', time:'18:05', items:[{name:'มาม่าต้มยำน้ำข้น',qty:1,price:50},{name:'ไมโล',qty:1,price:30}]},
   {table:5, amount:160, method:'cash', time:'18:30', items:[{name:'ชาไทย',qty:1,price:35},{name:'นมน้ำตาล',qty:1,price:25},{name:'ข้าวไข่เจียวไก่สับ',qty:1,price:25},{name:'ชาเขียวมัจฉะ',qty:1,price:40},{name:'ไส้กรอกแดง',qty:1,price:35}]},
 ];
+
 const weeklyOrders = {'จันทร์':0,'อังคาร':7,'พุธ':0,'พฤหัสบดี':0,'ศุกร์':0,'เสาร์':0,'อาทิตย์':0};
 
-let state = {
-  toast: null,
-  owner: { tab:'dashboard', period:'today', menuCat:'เครื่องดื่ม' },
-};
-
-function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; render(); }, 1800); }
 function money(n){ return '฿' + n.toLocaleString('th-TH', {minimumFractionDigits: n%1? 2:0}); }
-function findMenuItem(id){ for(const k in MENU){ const f=MENU[k].find(x=>x.id===id); if(f) return {...f, category:k}; } return null; }
 
-function appWindow(title, body, dark, sidebarIcons){
-  const icons = sidebarIcons || [{icon:'🏠',active:false}];
-  return `
-  <div class="app-window">
-    <div class="app-titlebar">
-      <div class="tleft"><span class="dot"></span>CM · ${title}</div>
-      <div class="online">Online</div>
-    </div>
-    <div class="app-flex">
-      <div class="app-sidebar">
-        ${icons.map(i=>`<button class="${i.active?'active':''}" ${i.onclick?`onclick="${i.onclick}"`:''} title="${i.label||''}">${i.icon}</button>`).join('')}
+export default function Owner(){
+  const [menu, setMenu] = useState(initialMenu);
+  const [staff, setStaff] = useState(initialStaff);
+  const [ownerState, setOwnerState] = useState({tab:'dashboard', period:'today', menuCat:'เครื่องดื่ม'});
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffPhone, setNewStaffPhone] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState('แคชเชียร์');
+  const [newStaffLevel, setNewStaffLevel] = useState('staff');
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  useEffect(() => {
+    document.title = 'ร้านชาแมกไม้ — ระบบเจ้าของร้าน';
+    if (!document.getElementById('cm-google-fonts')){
+      const link = document.createElement('link');
+      link.id = 'cm-google-fonts';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Space+Mono&display=swap';
+      document.head.appendChild(link);
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
+
+  function showToast(msg){
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1800);
+  }
+
+  const stats = useMemo(() => {
+    const total = initialPayments.reduce((sum, p) => sum + p.amount, 0);
+    const qr = initialPayments.filter(p => p.method === 'qr').reduce((sum,p) => sum + p.amount, 0);
+    const cash = initialPayments.filter(p => p.method === 'cash').reduce((sum,p) => sum + p.amount, 0);
+    const bills = initialPayments.length;
+    const itemTally = {};
+    initialPayments.forEach(p => p.items.forEach(it => { itemTally[it.name] = (itemTally[it.name] || 0) + it.qty; }));
+    const mult = ownerState.period === 'today' ? 1 : ownerState.period === 'week' ? 1.6 : 4.2;
+    return {
+      total: Math.round(total * mult),
+      qr: Math.round(qr * mult),
+      cash: Math.round(cash * mult),
+      bills: Math.round(bills * mult),
+      itemTally,
+    };
+  }, [ownerState.period]);
+
+  function findMenuItem(id){
+    for(const category in menu){
+      const item = menu[category].find(x=>x.id===id);
+      if(item) return {...item, category};
+    }
+    return null;
+  }
+
+  function ownerSetTab(tab){ setOwnerState(prev => ({...prev, tab})); }
+  function ownerSetPeriod(period){ setOwnerState(prev => ({...prev, period})); }
+  function ownerSetMenuCat(menuCat){ setOwnerState(prev => ({...prev, menuCat})); }
+
+  function ownerToggleItem(id){
+    const item = findMenuItem(id);
+    if (!item) return;
+    setMenu(prev => ({
+      ...prev,
+      [item.category]: prev[item.category].map(entry => entry.id === id ? {...entry, active: !entry.active} : entry),
+    }));
+  }
+
+  function ownerAddItem(){
+    const price = parseInt(newItemPrice, 10);
+    if (!newItemName.trim() || !price){ showToast('กรุณากรอกชื่อเมนูและราคาให้ครบถ้วน'); return; }
+    const cat = ownerState.menuCat;
+    const id = cat[0] + Date.now();
+    setMenu(prev => ({
+      ...prev,
+      [cat]: [...prev[cat], {id, name:newItemName.trim(), price, active:true}],
+    }));
+    setNewItemName('');
+    setNewItemPrice('');
+    showToast(`เพิ่มเมนู "${newItemName.trim()}" แล้ว`);
+  }
+
+  function ownerAddStaff(){
+    if (!newStaffName.trim() || !newStaffPhone.trim()){ showToast('กรุณากรอกชื่อและเบอร์โทรศัพท์'); return; }
+    const id = String(staff.length + 1).padStart(2,'0');
+    setStaff(prev => ([...prev, {id, name:newStaffName.trim(), phone:newStaffPhone.trim(), role:newStaffRole, level:newStaffLevel}]));
+    setNewStaffName('');
+    setNewStaffPhone('');
+    setNewStaffRole('แคชเชียร์');
+    setNewStaffLevel('staff');
+    showToast(`เพิ่มพนักงาน "${newStaffName.trim()}" แล้ว`);
+  }
+
+  function appWindow(title, body, dark, sidebarIcons){
+    return (
+      <div className="app-window">
+        <div className="app-titlebar">
+          <div className="tleft"><span className="dot"></span>CM · {title}</div>
+          <div className="online">Online</div>
+        </div>
+        <div className="app-flex">
+          <div className="app-sidebar">
+            {sidebarIcons.map(i => (
+              <button key={i.label} className={i.active ? 'active' : ''} type="button" title={i.label || ''} onClick={i.onclick}>{i.icon}</button>
+            ))}
+          </div>
+          <div className="app-body-wrap"><div className={`app-body ${dark ? 'dark' : ''}`}>{body}</div></div>
+        </div>
       </div>
-      <div class="app-body-wrap"><div class="app-body ${dark?'dark':''}">${body}</div></div>
-    </div>
-  </div>`;
-}
+    );
+  }
 
-function ownerStats(period){
-  const mult = period==='today'?1: period==='week'?1.6 : 4.2;
-  const total = payments.reduce((s,p)=>s+p.amount,0);
-  const qr = payments.filter(p=>p.method==='qr').reduce((s,p)=>s+p.amount,0);
-  const cash = payments.filter(p=>p.method==='cash').reduce((s,p)=>s+p.amount,0);
-  const bills = payments.length;
-  const itemTally = {};
-  payments.forEach(p=> p.items.forEach(it=>{ itemTally[it.name]=(itemTally[it.name]||0)+it.qty; }));
-  return {
-    total: Math.round(total*mult), qr: Math.round(qr*mult), cash: Math.round(cash*mult),
-    bills: Math.round(bills*mult), itemTally
-  };
-}
-function renderOwner(){
-  const o = state.owner;
-  const tabs = [['dashboard','📊','สรุปยอดขาย'],['menu','📖','จัดการเมนู'],['staff','👥','จัดการพนักงาน']];
-  let body = '';
-  if(o.tab==='dashboard') body = ownerDashboard();
-  if(o.tab==='menu') body = ownerMenuTab();
-  if(o.tab==='staff') body = ownerStaffTab();
-  return appWindow('Owner (เจ้าของร้าน)', body, false,
-    tabs.map(([k,icon,l])=>({icon, label:l, active:o.tab===k, onclick:`ownerSetTab('${k}')`}))
+  const periodText = {today:'วันนี้', week:'สัปดาห์นี้', month:'เดือนนี้'}[ownerState.period];
+  const maxItem = Math.max(1, ...Object.values(stats.itemTally));
+  const maxDay = Math.max(1, ...Object.values(weeklyOrders));
+
+  function dashboardBody(){
+    return (
+      <>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:15}}>สรุปยอดขายประจำ{periodText === 'วันนี้' ? 'วัน' : periodText === 'สัปดาห์นี้' ? 'สัปดาห์' : 'เดือน'}</div>
+            <div className="muted" style={{fontSize:12}}>ข้อมูลอัปเดตล่าสุด: วันนี้ {new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})} น.</div>
+          </div>
+          <div className="period-toggle">
+            {['today','week','month'].map(value => (
+              <button key={value} type="button" className={ownerState.period===value ? 'active' : ''} onClick={() => ownerSetPeriod(value)}>{value==='today' ? 'วันนี้' : value==='week' ? 'สัปดาห์นี้' : 'เดือนนี้'}</button>
+            ))}
+          </div>
+        </div>
+        <div className="kpi-grid" style={{marginTop:16}}>
+          <div className="kpi"><div className="kv">{money(stats.total)}</div><div className="kl">ยอดขายรวม{periodText}</div></div>
+          <div className="kpi"><div className="kv">{stats.bills}</div><div className="kl">จำนวนบิล</div></div>
+          <div className="kpi"><div className="kv">{money(stats.qr)}</div><div className="kl">ยอดโอน (QR)</div></div>
+          <div className="kpi"><div className="kv">{money(stats.cash)}</div><div className="kl">ยอดเงินสด</div></div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+          <div className="card">
+            <div style={{fontWeight:700,marginBottom:12}}>รายการยอดนิยม</div>
+            {Object.keys(stats.itemTally).length ? Object.entries(stats.itemTally).map(([name, qty]) => (
+              <div key={name} className="bar-row">
+                <div className="bl">{name}</div>
+                <div className="bar-track"><div className="bar-fill" style={{width:`${(qty / maxItem) * 100}%`}} /></div>
+                <div className="bv">{qty}</div>
+              </div>
+            )) : <div className="muted" style={{fontSize:13}}>ยังไม่มีข้อมูลการขาย</div>}
+          </div>
+          <div className="card">
+            <div style={{fontWeight:700,marginBottom:12}}>จำนวนออเดอร์แยกตามวันในสัปดาห์</div>
+            {Object.entries(weeklyOrders).map(([day, value]) => (
+              <div key={day} className="bar-row">
+                <div className="bl">{day}</div>
+                <div className="bar-track"><div className="bar-fill" style={{width:`${(value / maxDay) * 100}%`}} /></div>
+                <div className="bv">{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function menuBody(){
+    return (
+      <>
+        <div className="subnav">
+          {Object.keys(menu).map(cat => (
+            <button key={cat} type="button" className={ownerState.menuCat===cat ? 'active' : ''} onClick={() => ownerSetMenuCat(cat)}>{cat}</button>
+          ))}
+        </div>
+        <div className="card">
+          <table className="data">
+            <thead><tr><th>ชื่อเมนู</th><th>ราคา</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody>
+              {menu[ownerState.menuCat].map(it => (
+                <tr key={it.id}>
+                  <td style={{fontWeight:600}}>{it.name}</td>
+                  <td>{money(it.price)}</td>
+                  <td><button type="button" className={`toggle ${it.active ? 'on' : ''}`} onClick={() => ownerToggleItem(it.id)}><span className="knob" /></button></td>
+                  <td className="muted" style={{fontSize:12}}>{it.active ? 'เปิดขาย' : 'ปิดขาย'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <hr className="divider" />
+        <div style={{fontWeight:700,marginBottom:10}}>เพิ่มเมนูใหม่</div>
+        <div className="form-grid" style={{gridTemplateColumns:'2fr 1fr 1fr auto',alignItems:'end'}}>
+          <div className="field"><label>ชื่อเมนู</label><input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="เช่น ชาดำเย็น" /></div>
+          <div className="field"><label>ราคา (฿)</label><input type="number" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="30" /></div>
+          <div className="field"><label>หมวดหมู่</label><div style={{padding:'9px 0',fontSize:13.5,fontWeight:600}}>{ownerState.menuCat}</div></div>
+          <button type="button" className="btn btn-primary" onClick={ownerAddItem}>เพิ่มเมนูใหม่</button>
+        </div>
+      </>
+    );
+  }
+
+  function staffBody(){
+    return (
+      <>
+        <div className="card">
+          <table className="data">
+            <thead><tr><th>รหัส</th><th>ชื่อพนักงาน</th><th>เบอร์โทรศัพท์</th><th>ตำแหน่ง</th><th>ระดับสิทธิ์</th></tr></thead>
+            <tbody>
+              {staff.map(s => (
+                <tr key={s.id}>
+                  <td className="mono">{s.id}</td>
+                  <td style={{fontWeight:600}}>{s.name}</td>
+                  <td>{s.phone}</td>
+                  <td>{s.role}</td>
+                  <td><span className={`role-chip ${s.level}`}>{s.level === 'admin' ? 'Admin' : 'Staff'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <hr className="divider" />
+        <div style={{fontWeight:700,marginBottom:10}}>เพิ่มพนักงานใหม่</div>
+        <div className="form-grid">
+          <div className="field"><label>ชื่อพนักงาน</label><input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} placeholder="ชื่อ นามสกุล" /></div>
+          <div className="field"><label>เบอร์โทรศัพท์</label><input value={newStaffPhone} onChange={e => setNewStaffPhone(e.target.value)} placeholder="0XX-XXX-XXXX" /></div>
+          <div className="field"><label>ตำแหน่ง</label><select value={newStaffRole} onChange={e => setNewStaffRole(e.target.value)}><option>แคชเชียร์</option><option>ครัว</option><option>เจ้าของร้าน</option></select></div>
+          <div className="field"><label>ระดับสิทธิ์</label><select value={newStaffLevel} onChange={e => setNewStaffLevel(e.target.value)}><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+        </div>
+        <button type="button" className="btn btn-primary" onClick={ownerAddStaff}>เพิ่มพนักงานใหม่</button>
+      </>
+    );
+  }
+
+  return (
+    <div id="app">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+      {appWindow(
+        'Owner (เจ้าของร้าน)',
+        ownerState.tab === 'dashboard' ? dashboardBody() : ownerState.tab === 'menu' ? menuBody() : staffBody(),
+        false,
+        [
+          {icon:'📊', label:'สรุปยอดขาย', active: ownerState.tab === 'dashboard', onclick: () => ownerSetTab('dashboard')},
+          {icon:'📖', label:'จัดการเมนู', active: ownerState.tab === 'menu', onclick: () => ownerSetTab('menu')},
+          {icon:'👥', label:'จัดการพนักงาน', active: ownerState.tab === 'staff', onclick: () => ownerSetTab('staff')},
+        ]
+      )}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
   );
 }
-function ownerSetTab(t){ state.owner.tab=t; render(); }
-function ownerSetPeriod(p){ state.owner.period=p; render(); }
-
-function ownerDashboard(){
-  const o = state.owner;
-  const s = ownerStats(o.period);
-  const periodLabel = {today:'วันนี้', week:'สัปดาห์นี้', month:'เดือนนี้'}[o.period];
-  const maxItem = Math.max(1, ...Object.values(s.itemTally));
-  const maxDay = Math.max(1, ...Object.values(weeklyOrders));
-  return `
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-    <div>
-      <div style="font-weight:700;font-size:15px;">สรุปยอดขายประจำ${periodLabel==='วันนี้'?'วัน':periodLabel==='สัปดาห์นี้'?'สัปดาห์':'เดือน'}</div>
-      <div class="muted" style="font-size:12px;">ข้อมูลอัปเดตล่าสุด: วันนี้ ${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})} น.</div>
-    </div>
-    <div class="period-toggle">
-      ${['today','week','month'].map(p=>`<button class="${o.period===p?'active':''}" onclick="ownerSetPeriod('${p}')">${p==='today'?'วันนี้':p==='week'?'สัปดาห์นี้':'เดือนนี้'}</button>`).join('')}
-    </div>
-  </div>
-  <div class="kpi-grid" style="margin-top:16px;">
-    <div class="kpi"><div class="kv">${money(s.total)}</div><div class="kl">ยอดขายรวม${periodLabel}</div></div>
-    <div class="kpi"><div class="kv">${s.bills}</div><div class="kl">จำนวนบิล</div></div>
-    <div class="kpi"><div class="kv">${money(s.qr)}</div><div class="kl">ยอดโอน (QR)</div></div>
-    <div class="kpi"><div class="kv">${money(s.cash)}</div><div class="kl">ยอดเงินสด</div></div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:12px;">รายการยอดนิยม</div>
-      ${Object.keys(s.itemTally).length? Object.entries(s.itemTally).map(([name,qty])=>`
-        <div class="bar-row">
-          <div class="bl">${name}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${qty/maxItem*100}%;"></div></div>
-          <div class="bv">${qty}</div>
-        </div>`).join('') : `<div class="muted" style="font-size:13px;">ยังไม่มีข้อมูลการขาย</div>`}
-    </div>
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:12px;">จำนวนออเดอร์แยกตามวันในสัปดาห์</div>
-      ${Object.entries(weeklyOrders).map(([day,n])=>`
-        <div class="bar-row">
-          <div class="bl">${day}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${n/maxDay*100}%;"></div></div>
-          <div class="bv">${n}</div>
-        </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-function ownerMenuTab(){
-  const o = state.owner;
-  const cats = Object.keys(MENU);
-  return `
-  <div class="subnav">
-    ${cats.map(c=>`<button class="${o.menuCat===c?'active':''}" onclick="ownerSetMenuCat('${c}')">${c}</button>`).join('')}
-  </div>
-  <div class="card">
-    <table class="data">
-      <thead><tr><th>ชื่อเมนู</th><th>ราคา</th><th>สถานะ</th><th></th></tr></thead>
-      <tbody>
-        ${MENU[o.menuCat].map(it=>`
-          <tr>
-            <td style="font-weight:600;">${it.name}</td>
-            <td>${money(it.price)}</td>
-            <td><button class="toggle ${it.active?'on':''}" onclick="ownerToggleItem('${it.id}')"><span class="knob"></span></button></td>
-            <td class="muted" style="font-size:12px;">${it.active?'เปิดขาย':'ปิดขาย'}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>
-  <hr class="divider">
-  <div style="font-weight:700;margin-bottom:10px;">เพิ่มเมนูใหม่</div>
-  <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr auto;align-items:end;">
-    <div class="field"><label>ชื่อเมนู</label><input id="newItemName" placeholder="เช่น ชาดำเย็น"></div>
-    <div class="field"><label>ราคา (฿)</label><input id="newItemPrice" type="number" placeholder="30"></div>
-    <div class="field"><label>หมวดหมู่</label><div style="padding:9px 0;font-size:13.5px;font-weight:600;">${o.menuCat}</div></div>
-    <button class="btn btn-primary" onclick="ownerAddItem()">เพิ่มเมนูใหม่</button>
-  </div>`;
-}
-function ownerSetMenuCat(c){ state.owner.menuCat=c; render(); }
-function ownerToggleItem(id){ const it=findMenuItem(id); MENU[it.category].find(x=>x.id===id).active = !it.active; render(); }
-function ownerAddItem(){
-  const name = document.getElementById('newItemName').value.trim();
-  const price = parseInt(document.getElementById('newItemPrice').value);
-  if(!name || !price) { showToast('กรุณากรอกชื่อเมนูและราคาให้ครบถ้วน'); return; }
-  const cat = state.owner.menuCat;
-  const id = cat[0]+Date.now();
-  MENU[cat].push({id, name, price, active:true});
-  showToast(`เพิ่มเมนู "${name}" แล้ว`);
-}
-
-function ownerStaffTab(){
-  return `
-  <div class="card">
-    <table class="data">
-      <thead><tr><th>รหัส</th><th>ชื่อพนักงาน</th><th>เบอร์โทรศัพท์</th><th>ตำแหน่ง</th><th>ระดับสิทธิ์</th></tr></thead>
-      <tbody>
-        ${staff.map(s=>`
-          <tr>
-            <td class="mono">${s.id}</td>
-            <td style="font-weight:600;">${s.name}</td>
-            <td>${s.phone}</td>
-            <td>${s.role}</td>
-            <td><span class="role-chip ${s.level}">${s.level==='admin'?'Admin':'Staff'}</span></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>
-  <hr class="divider">
-  <div style="font-weight:700;margin-bottom:10px;">เพิ่มพนักงานใหม่</div>
-  <div class="form-grid">
-    <div class="field"><label>ชื่อพนักงาน</label><input id="newStaffName" placeholder="ชื่อ นามสกุล"></div>
-    <div class="field"><label>เบอร์โทรศัพท์</label><input id="newStaffPhone" placeholder="0XX-XXX-XXXX"></div>
-    <div class="field"><label>ตำแหน่ง</label>
-      <select id="newStaffRole"><option>แคชเชียร์</option><option>ครัว</option><option>เจ้าของร้าน</option></select>
-    </div>
-    <div class="field"><label>ระดับสิทธิ์</label>
-      <select id="newStaffLevel"><option value="staff">Staff</option><option value="admin">Admin</option></select>
-    </div>
-  </div>
-  <button class="btn btn-primary" onclick="ownerAddStaff()">เพิ่มพนักงานใหม่</button>`;
-}
-function ownerAddStaff(){
-  const name = document.getElementById('newStaffName').value.trim();
-  const phone = document.getElementById('newStaffPhone').value.trim();
-  const role = document.getElementById('newStaffRole').value;
-  const level = document.getElementById('newStaffLevel').value;
-  if(!name || !phone){ showToast('กรุณากรอกชื่อและเบอร์โทรศัพท์'); return; }
-  const id = String(staff.length+1).padStart(2,'0');
-  staff.push({id,name,phone,role,level});
-  showToast(`เพิ่มพนักงาน "${name}" แล้ว`);
-}
-
-function render(){
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="stage"><div class="stage-inner">${renderOwner()}</div></div>
-    ${state.toast? `<div class="toast">${state.toast}</div>` : ''}
-  `;
-}
-render();
-</script>
-</body>
-</html>
