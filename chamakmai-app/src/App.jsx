@@ -1,7 +1,7 @@
-import Login from "./pages/Login";
+import Owner from "./pages/owner";
 
 function App() {
-  return <Login />;
+  return <Owner />;
 }
 
 export default App;

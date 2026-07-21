@@ -18,12 +18,12 @@ const styles = `
   .mono{font-family:'Space Mono', monospace;}
   button{font-family:inherit;cursor:pointer;}
 
-  #app{min-height:100vh;display:flex;flex-direction:column;}
+  #app{min-height:100vh;display:flex;flex-direction:column;background:var(--cream-100);}
   .stage{flex:1;padding:0;display:flex;justify-content:center;}
   .stage-inner{width:100%;max-width:100%;}
 
   /* ===== Desktop app titlebar ===== */
-  .app-window{background:var(--paper);border-radius:0;overflow:hidden;display:flex;flex-direction:column;min-height:100vh;border:none;}
+  .app-window{background:transparent;border-radius:0;overflow:hidden;display:flex;flex-direction:column;min-height:100vh;border:none;}
   .app-titlebar{background:var(--navy-800);color:#F3F4F6;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;}
   .app-titlebar .tleft{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px;}
   .app-titlebar .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);}

@@ -20,7 +20,7 @@ const styles = `
   button{font-family:inherit;cursor:pointer;}
   ::selection{background:var(--gold);color:#fff;}
 
-  #app{min-height:100vh;display:flex;flex-direction:column;}
+  #app{min-height:100vh;display:flex;flex-direction:column;background:var(--cream-100);}
   .stage{flex:1;padding:28px 22px 60px;display:flex;justify-content:center;}
   .stage-inner{width:100%;max-width:1180px;}
 
