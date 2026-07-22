@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const styles = `
   :root{
@@ -35,23 +36,33 @@ const styles = `
   .app-sidebar{width:58px;flex-shrink:0;background:var(--navy-900);display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0;}
   .app-sidebar button{width:38px;height:38px;border-radius:11px;border:none;background:transparent;color:#9CA3AF;font-size:17px;display:flex;align-items:center;justify-content:center;}
   .app-sidebar button.active{background:var(--amber);color:#fff;}
-  .app-body-wrap{flex:1;min-width:0;}
-  .app-body{padding:20px 22px 26px;}
-  .app-body.dark{background:var(--navy-900);}
-  .app-body.dark .ticket{background:#1F2937;border-color:#374151;}
-  .app-body.dark .ticket .thead{border-bottom-color:#374151;color:#F3F4F6;}
-  .app-body.dark .ticket .item-row{color:#E5E7EB;}
-  .app-body.dark .ticket .item-row .note{color:#9CA3AF;}
-  .app-body.dark .muted{color:#9CA3AF;}
+  .app-body-wrap{flex:1;min-width:0;background:#eef2f6;}
+  .app-body{padding:20px 22px 26px;min-height:calc(100vh - 56px);background:transparent;}
+  .app-body.dark{background:#eef2f6;}
+  .app-body.dark .ticket{background:var(--paper);border-color:var(--line);}
+  .app-body.dark .ticket .thead{border-bottom-color:var(--line);color:var(--ink);}
+  .app-body.dark .ticket .item-row{color:var(--ink);}
+  .app-body.dark .ticket .item-row .note{color:var(--ink-soft);}
+  .app-body.dark .muted{color:var(--ink-soft);}
 
   .ticket{background:var(--paper);border:1px solid var(--line);border-radius:12px;position:relative;padding:14px 14px 14px 16px;box-shadow:0 4px 10px -6px rgba(17,24,39,0.15);border-left:4px solid var(--amber);}
   .ticket.st-cooking{border-left-color:var(--clay);}
   .ticket.st-done{border-left-color:var(--jade);}
-  .ticket .thead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line);}
-  .ticket .thead .tnum{font-family:'Space Mono',monospace;font-size:12px;color:var(--ink-soft);}
-  .ticket .thead .ttable{font-weight:700;font-size:15px;}
-  .ticket .item-row{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;}
-  .ticket .item-row .note{color:var(--ink-soft);font-size:12.5px;}
+  .ticket.table-5-card{border:3px solid var(--amber-dark);border-radius:0;box-shadow:inset 0 0 0 1px rgba(217,119,6,0.12);padding:18px 18px 18px 20px;margin:-1px;min-height:calc(100vh - 90px);display:flex;flex-direction:column;justify-content:flex-start;gap:10px;position:relative;overflow:hidden;}
+  .ticket.table-5-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--amber);}
+  .ticket.table-5-card.st-cooking::before{background:var(--clay);}
+  .ticket.table-5-card.st-done::before{background:var(--jade);}
+  .ticket.table-5-card .thead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:12px;border-bottom:2px solid var(--amber-dark);}
+  .ticket.table-5-card .thead .tnum{font-family:'Space Mono',monospace;font-size:14px;color:var(--ink-soft);}
+  .ticket.table-5-card .thead .ttable{font-weight:800;font-size:20px;color:var(--brown-900);}
+  .ticket.table-5-card .badge-wrap{display:flex;justify-content:center;align-items:center;}
+  .ticket.table-5-card .badge{font-size:13px;padding:6px 12px;align-self:center;display:inline-flex;justify-content:center;}
+  .ticket.table-5-card .item-list{display:flex;flex-direction:column;gap:6px;flex:1;}
+  .ticket.table-5-card .action-row{display:flex;justify-content:center;align-items:center;flex:1;min-height:72px;}
+  .ticket.table-5-card .action-row .btn{width:72%;max-width:180px;margin:0;}
+  .ticket.table-5-card .item-row{display:flex;justify-content:space-between;align-items:flex-start;font-size:16px;padding:8px 0;line-height:1.45;border-bottom:1px dashed var(--line);}
+  .ticket.table-5-card .item-row:last-child{border-bottom:none;}
+  .ticket.table-5-card .item-row .note{color:var(--ink-soft);font-size:14px;display:block;margin-top:2px;}
 
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;}
   .badge-queue{background:#F3E7D2;color:#8A5A16;}
@@ -149,17 +160,25 @@ export default function Kitchen(){
         'Kitchen Display System (ครัว)',
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(210px,1fr))',gap:14}}>
           {sortedOrders.length ? sortedOrders.map(o => (
-            <div key={o.id} className={`ticket st-${o.status}`}>
+            <div key={o.id} className={`ticket st-${o.status} ${o.table === 5 ? 'table-5-card' : ''}`}>
               <div className="thead">
                 <span className="ttable">โต๊ะ {o.table}</span>
                 <span className="tnum">{o.time}</span>
               </div>
-              <div className={`badge ${labels[o.status][1]}`} style={{marginBottom:8}}>{labels[o.status][0]} · {o.dispId}</div>
-              {o.items.map((it, idx) => (
-                <div key={idx} className="item-row"><span>{it.name} {it.note ? <span className="note">({it.note})</span> : null}</span><span>×{it.qty}</span></div>
-              ))}
+              <div className="badge-wrap">
+                <div className={`badge ${labels[o.status][1]}`} style={{marginBottom:8}}>{labels[o.status][0]} · {o.dispId}</div>
+              </div>
+              <div className={`item-list ${o.table === 5 ? 'item-list-compact' : ''}`}>
+                {o.items.map((it, idx) => (
+                  <div key={idx} className="item-row"><span>{it.name} {it.note ? <span className="note">({it.note})</span> : null}</span><span>×{it.qty}</span></div>
+                ))}
+              </div>
               {o.status === 'queue' ? <button type="button" className="btn btn-primary btn-block btn-sm" style={{marginTop:10}} onClick={() => kitchenAdvance(o.id)}>รับออเดอร์</button> : null}
-              {o.status === 'cooking' ? <button type="button" className="btn btn-jade btn-block btn-sm" style={{marginTop:10}} onClick={() => kitchenAdvance(o.id)}>เสร็จสิ้น</button> : null}
+              {o.status === 'cooking' ? (
+                <div className="action-row">
+                  <button type="button" className="btn btn-jade btn-block btn-sm" onClick={() => kitchenAdvance(o.id)}>เสร็จสิ้น</button>
+                </div>
+              ) : null}
             </div>
           )) : <div className="muted" style={{fontSize:13,padding:'10px 0'}}>ไม่มีออเดอร์เข้ามาในขณะนี้</div>}
         </div>,
