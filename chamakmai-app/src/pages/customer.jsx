@@ -1,4 +1,11 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import CustomerHeader from "../components/customer/CustomerHeader";
+import CustomerMenuTab from "../components/customer/CustomerMenuTab";
+import CustomerCartTab from "../components/customer/CustomerCartTab";
+import CustomerStatusTab from "../components/customer/CustomerStatusTab";
+import CustomerHistoryTab from "../components/customer/CustomerHistoryTab";
+import CustomerTabbar from "../components/customer/CustomerTabbar";
+import CustomerDetailModal from "../components/customer/CustomerDetailModal";
 
 const styles = `
   :root{
@@ -262,176 +269,6 @@ export default function Customer(){
     showToast('ส่งออเดอร์เข้าครัวแล้ว 🎉');
   }
 
-  function appWindow(title, body, dark, sidebarIcons){
-    return (
-      <div className="app-window">
-        <div className="app-titlebar">
-          <div className="tleft"><span className="dot"></span>CM · {title}</div>
-          <div className="online">Online</div>
-        </div>
-        <div className="app-flex">
-          <div className="app-sidebar">
-            {sidebarIcons.map(i => (
-              <button key={i.label} className={i.active ? 'active' : ''} type="button" title={i.label || ''}>{i.icon}</button>
-            ))}
-          </div>
-          <div className="app-body-wrap"><div className={`app-body ${dark ? 'dark' : ''}`}>{body}</div></div>
-        </div>
-      </div>
-    );
-  }
-
-  function custHeader(){
-    const titles = {menu:'ร้านชาแมกไม้', cart:'ตะกร้าของฉัน', status:'สถานะออเดอร์', history:'ประวัติการสั่งซื้อ'};
-    return (
-      <div className="phone-header">
-        <div className="row1">
-          <div className="left-group">
-            <div className="shopname">{titles[customer.tab]}</div>
-            <div className="table-chip">โต๊ะ {customer.table}</div>
-          </div>
-          <div className="header-actions">
-            <button type="button" className={`header-action ${customer.tab==='cart' ? 'active' : ''}`} onClick={() => custSetTab('cart')}>🧺 ตะกร้า{customer.cart.length ? ` (${customer.cart.length})` : ''}</button>
-            <button type="button" className={`header-action ${customer.tab==='history' ? 'active' : ''}`} onClick={() => custSetTab('history')}>📜 ประวัติ</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function custMenuTab(){
-    return (
-      <>
-        <div className="search-box">
-          <span>🔍</span>
-          <input type="text" onChange={e => custSearch(e.target.value)} value={customer.search} placeholder="ค้นหาเมนู..." style={{border:'none',background:'transparent',outline:'none',flex:1,fontFamily:'inherit',fontSize:13.5}} />
-        </div>
-        <div className="cat-scroll">
-          {Object.keys(MENU).map(cat => (
-            <button key={cat} type="button" className={cat===customer.category ? 'active' : ''} onClick={() => custSetCat(cat)}>{CAT_EMOJI[cat] || ''} {cat}</button>
-          ))}
-        </div>
-        <div>
-          {filteredItems.length ? filteredItems.map(it => (
-            <div key={it.id} className={`menu-item ${!it.active ? 'soldout' : ''}`}>
-              <div className="mi-left">
-                <div className="mi-thumb">{CAT_EMOJI[customer.category] || '🍽️'}</div>
-                <div>
-                  <div className="mi-name">{it.name}</div>
-                  <div className="mi-price">{money(it.price)}</div>
-                  {!it.active ? <div style={{fontSize:11,color:'var(--clay)',fontWeight:700,marginTop:2}}>หมดชั่วคราว</div> : null}
-                </div>
-              </div>
-              <button type="button" className="add-mini" disabled={!it.active} onClick={() => custOpenItem(it.id)}>+</button>
-            </div>
-          )) : (
-            <div className="empty-state"><div className="glyph">🍽️</div>ไม่พบเมนูที่ค้นหา</div>
-          )}
-        </div>
-      </>
-    );
-  }
-
-  function custCartTab(){
-    if (!customer.cart.length){
-      return (
-        <div className="empty-state">
-          <div className="glyph">🧺</div>ยังไม่มีสินค้าในตะกร้า
-          <button type="button" className="btn btn-ghost" style={{marginTop:14}} onClick={() => custSetTab('menu')}>ไปเลือกเมนู</button>
-        </div>
-      );
-    }
-    return (
-      <>
-        <div>
-          {customer.cart.map((it, index) => (
-            <div key={index} className="cart-row">
-              <div>
-                <div className="cn">{it.name} {it.qty > 1 ? `×${it.qty}` : ''}</div>
-                <div className="cs">{it.note || ''}</div>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
-                <div className="cp">{money(it.price * it.qty)}</div>
-                <button type="button" onClick={() => custRemoveCart(index)} style={{border:'none',background:'none',color:'var(--clay)',fontSize:11.5,fontWeight:700}}>ลบ</button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{marginTop:16,display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:15}}>
-          <span>ยอดรวม</span><span>{money(cartTotal)}</span>
-        </div>
-        <button type="button" className="btn btn-primary btn-block" style={{marginTop:14,padding:13}} onClick={custConfirmOrder}>ยืนยันรายการ</button>
-      </>
-    );
-  }
-
-  function custStatusTab(){
-    if (!myOrders.length){
-      return (
-        <div className="empty-state"><div className="glyph">🧾</div>ยังไม่มีออเดอร์ที่กำลังดำเนินการ</div>
-      );
-    }
-    const labels = {queue:['รอคิว','badge-queue'], cooking:['กำลังทำ','badge-cooking'], done:['เสร็จแล้ว','badge-done']};
-    return (
-      <>
-        {myOrders.map(o => (
-          <div key={o.id} className="status-block">
-            <div className="sh">
-              <div style={{fontWeight:700,fontSize:13.5}}>ออเดอร์ {o.dispId} · {o.time}</div>
-              <span className={`badge ${labels[o.status][1]}`}>{labels[o.status][0]}</span>
-            </div>
-            {o.items.map((it, idx) => (
-              <div key={idx} style={{fontSize:13,display:'flex',justifyContent:'space-between',padding:'3px 0'}}>
-                <span>{it.name} {it.note ? `(${it.note})` : ''} ×{it.qty}</span>
-                <span>{money(it.price * it.qty)}</span>
-              </div>
-            ))}
-            {o.paid ? (
-              <div style={{marginTop:8,fontSize:11.5,color:'var(--jade)',fontWeight:700}}>✓ ชำระเงินแล้ว</div>
-            ) : (
-              <div style={{marginTop:8,fontSize:11.5,color:'var(--ink-soft)'}}>หากต้องการเช็คบิล กรุณาไปที่เคาน์เตอร์แคชเชียร์</div>
-            )}
-          </div>
-        ))}
-      </>
-    );
-  }
-
-  function custHistoryTab(){
-    if (!paidForTable.length){
-      return (
-        <div className="empty-state"><div className="glyph">📜</div>ยังไม่มีประวัติการสั่งซื้อ</div>
-      );
-    }
-    return (
-      <>
-        {paidForTable.map((p, index) => (
-          <div key={index} className="status-block">
-            <div className="sh"><div style={{fontWeight:700,fontSize:13.5}}>บิลโต๊ะ {p.table} · {p.time}</div><span className="badge badge-done">{p.method === 'qr' ? 'จ่ายผ่าน QR' : 'เงินสด'}</span></div>
-            {p.items.map((it, idx) => (
-              <div key={idx} style={{fontSize:13,display:'flex',justifyContent:'space-between',padding:'3px 0'}}>
-                <span>{it.name} ×{it.qty}</span><span>{money(it.price * it.qty)}</span>
-              </div>
-            ))}
-            <div style={{marginTop:6,fontWeight:700,display:'flex',justifyContent:'space-between'}}><span>ยอดรวม</span><span>{money(p.amount)}</span></div>
-          </div>
-        ))}
-      </>
-    );
-  }
-
-  function custTabbar(){
-    const tabs = [['menu','🍜','เมนู'],['status','🧾','สถานะ']];
-    return (
-      <div className="phone-tabbar">
-        {tabs.map(([key, icon, label]) => (
-          <button key={key} type="button" className={customer.tab===key ? 'active' : ''} onClick={() => custSetTab(key)}>
-            <span className="ico">{icon}</span>{label}
-          </button>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div id="app">
@@ -441,68 +278,44 @@ export default function Customer(){
           <div className="phone-wrap">
             <div className="phone">
               <div className="phone-screen">
-                {custHeader()}
+                <CustomerHeader tab={customer.tab} table={customer.table} cartCount={customer.cart.length} onSetTab={custSetTab} />
                 <div className="phone-content">
-                  {customer.tab === 'menu' ? custMenuTab() : null}
-                  {customer.tab === 'cart' ? custCartTab() : null}
-                  {customer.tab === 'status' ? custStatusTab() : null}
-                  {customer.tab === 'history' ? custHistoryTab() : null}
+                  {customer.tab === 'menu' ? (
+                    <CustomerMenuTab
+                      customer={customer}
+                      filteredItems={filteredItems}
+                      money={money}
+                      catEmoji={CAT_EMOJI}
+                      menu={MENU}
+                      onSearch={custSearch}
+                      onSetCat={custSetCat}
+                      onOpenItem={custOpenItem}
+                    />
+                  ) : null}
+                  {customer.tab === 'cart' ? (
+                    <CustomerCartTab
+                      customer={customer}
+                      cartTotal={cartTotal}
+                      money={money}
+                      onSetTab={custSetTab}
+                      onRemoveCart={custRemoveCart}
+                      onConfirmOrder={custConfirmOrder}
+                    />
+                  ) : null}
+                  {customer.tab === 'status' ? <CustomerStatusTab myOrders={myOrders} money={money} /> : null}
+                  {customer.tab === 'history' ? <CustomerHistoryTab paidForTable={paidForTable} money={money} /> : null}
                 </div>
-                {custTabbar()}
+                <CustomerTabbar tab={customer.tab} onSetTab={custSetTab} />
               </div>
-              {customer.detailItem ? (
-                <div style={{position:'absolute',inset:0,background:'rgba(44,33,24,0.45)',display:'flex',alignItems:'flex-end',zIndex:60}} onClick={e => { if (e.target === e.currentTarget) custCloseItem(); }}>
-                  <div style={{background:'var(--paper)',width:'100%',borderRadius:'20px 20px 0 0',padding:'20px 18px 22px',maxHeight:'88%',overflowY:'auto'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
-                      <div>
-                        <div style={{fontWeight:700,fontSize:19}}>{detailItem.name}</div>
-                        <div className="mi-price" style={{fontSize:15,marginTop:3}}>{money(detailItem.price)}</div>
-                      </div>
-                      <button type="button" onClick={custCloseItem} style={{border:'none',background:'var(--cream-100)',width:30,height:30,borderRadius:'50%',fontSize:15}}>✕</button>
-                    </div>
-                    <hr className="divider" />
-                    {detailItem.sweet ? (
-                      <div style={{marginBottom:16}}>
-                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>ระดับความหวาน</div>
-                        <div className="pill-group">
-                          {['หวานน้อย','หวานปกติ','หวานมาก'].map(value => (
-                            <button key={value} type="button" className={`pill ${customer.opts.sweet===value ? 'active' : ''}`} onClick={() => custSetOpt('sweet', value)}>{value}</button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {detailItem.spicy ? (
-                      <div style={{marginBottom:16}}>
-                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>ระดับความเผ็ด</div>
-                        <div className="pill-group">
-                          {['ไม่เผ็ด','เผ็ดน้อย','เผ็ดปกติ','เผ็ดมาก'].map(value => (
-                            <button key={value} type="button" className={`pill ${customer.opts.spicy===value ? 'active' : ''}`} onClick={() => custSetOpt('spicy', value)}>{value}</button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {detailItem.sauce ? (
-                      <div style={{marginBottom:16}}>
-                        <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>เลือกซอส</div>
-                        <div className="pill-group">
-                          {['ซอสมะเขือเทศ','ซอสพริก'].map(value => (
-                            <button key={value} type="button" className={`pill ${customer.opts.sauce===value ? 'active' : ''}`} onClick={() => custSetOpt('sauce', value)}>{value}</button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
-                      <div style={{fontWeight:700,fontSize:13.5}}>จำนวน</div>
-                      <div className="qty-stepper">
-                        <button type="button" onClick={() => custQty(-1)}>−</button>
-                        <span style={{minWidth:16,textAlign:'center',fontWeight:700}}>{customer.opts.qty || 1}</span>
-                        <button type="button" onClick={() => custQty(1)}>+</button>
-                      </div>
-                    </div>
-                    <button type="button" className="btn btn-primary btn-block" style={{marginTop:18,padding:13}} onClick={custAddToCart}>เพิ่มลงตะกร้า · {money(detailPrice)}</button>
-                  </div>
-                </div>
-              ) : null}
+              <CustomerDetailModal
+                detailItem={detailItem}
+                customer={customer}
+                money={money}
+                onClose={custCloseItem}
+                onSetOpt={custSetOpt}
+                onQty={custQty}
+                onAddToCart={custAddToCart}
+              />
             </div>
           </div>
         </div>
