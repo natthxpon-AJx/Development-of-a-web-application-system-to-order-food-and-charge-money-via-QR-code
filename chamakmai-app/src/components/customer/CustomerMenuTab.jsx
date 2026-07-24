@@ -5,7 +5,7 @@ export default function CustomerMenuTab({
   filteredItems,
   money,
   catEmoji,
-  menu,
+  categories,
   onSearch,
   onSetCat,
   onOpenItem,
@@ -23,7 +23,7 @@ export default function CustomerMenuTab({
         />
       </div>
       <div className="cat-scroll">
-        {Object.keys(menu).map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat}
             type="button"
@@ -36,25 +36,28 @@ export default function CustomerMenuTab({
       </div>
       <div>
         {filteredItems.length ? (
-          filteredItems.map((it) => (
-            <div key={it.id} className={`menu-item ${!it.active ? "soldout" : ""}`}>
-              <div className="mi-left">
-                <div className="mi-thumb">{catEmoji[customer.category] || "🍽️"}</div>
-                <div>
-                  <div className="mi-name">{it.name}</div>
-                  <div className="mi-price">{money(it.price)}</div>
-                  {!it.active ? (
-                    <div style={{ fontSize: 11, color: "var(--clay)", fontWeight: 700, marginTop: 2 }}>
-                      หมดชั่วคราว
-                    </div>
-                  ) : null}
+          filteredItems.map((it) => {
+            const isAvailable = it.active ?? it.status !== "unavailable";
+            return (
+              <div key={it.id} className={`menu-item ${!isAvailable ? "soldout" : ""}`}>
+                <div className="mi-left">
+                  <div className="mi-thumb">{catEmoji[it.category] || catEmoji[customer.category] || "🍽️"}</div>
+                  <div>
+                    <div className="mi-name">{it.name}</div>
+                    <div className="mi-price">{money(it.price)}</div>
+                    {!isAvailable ? (
+                      <div style={{ fontSize: 11, color: "var(--clay)", fontWeight: 700, marginTop: 2 }}>
+                        หมดชั่วคราว
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
+                <button type="button" className="add-mini" disabled={!isAvailable} onClick={() => onOpenItem(it.id)}>
+                  +
+                </button>
               </div>
-              <button type="button" className="add-mini" disabled={!it.active} onClick={() => onOpenItem(it.id)}>
-                +
-              </button>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="empty-state">
             <div className="glyph">🍽️</div>ไม่พบเมนูที่ค้นหา

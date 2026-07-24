@@ -6,6 +6,8 @@ import CustomerStatusTab from "../components/customer/CustomerStatusTab";
 import CustomerHistoryTab from "../components/customer/CustomerHistoryTab";
 import CustomerTabbar from "../components/customer/CustomerTabbar";
 import CustomerDetailModal from "../components/customer/CustomerDetailModal";
+import menuData from "../data/menuData";
+import categoryData from "../data/categoryData";
 
 const styles = `
   :root{
@@ -103,48 +105,13 @@ const styles = `
   }
 `;
 
-const MENU = {
-  "เครื่องดื่ม": [
-    {id:'d1',name:'ชาไทย',price:30,sweet:true,active:true},
-    {id:'d2',name:'ชาเขียว',price:30,sweet:true,active:true},
-    {id:'d3',name:'ชาเขียวมัจฉะ',price:40,sweet:true,active:true},
-    {id:'d4',name:'ไมโล',price:30,sweet:true,active:true},
-    {id:'d5',name:'โอวัลติน',price:30,sweet:true,active:true},
-    {id:'d6',name:'นมชมพู',price:30,sweet:true,active:true},
-  ],
-  "ของทานเล่น": [
-    {id:'s1',name:'กรอบโปะ',price:30,sauce:true,active:true},
-    {id:'s2',name:'เฟรนช์ฟราย',price:35,sauce:true,active:true},
-    {id:'s3',name:'ไส้กรอกแดง',price:35,sauce:true,active:true},
-    {id:'s4',name:'ไส้กรอกไก่',price:40,sauce:true,active:true},
-    {id:'s5',name:'ไส้กรอกอีสาน',price:40,sauce:true,active:true},
-    {id:'s6',name:'นักเก็ต',price:40,sauce:true,active:true},
-  ],
-  "ขนมปัง": [
-    {id:'b1',name:'นมน้ำตาล',price:25,active:true},
-    {id:'b2',name:'นมไมโล',price:25,active:true},
-    {id:'b3',name:'นูเทลลา',price:35,active:true},
-    {id:'b4',name:'พริกเผาไก่หยอง',price:35,active:true},
-    {id:'b5',name:'พิซซ่าปูอัดชีส',price:40,active:true},
-    {id:'b6',name:'เนยกระเทียมชีส',price:40,active:true},
-  ],
-  "อาหาร": [
-    {id:'f1',name:'ข้าวไข่เจียวไก่สับ',price:35,sauce:true,active:true},
-    {id:'f2',name:'ข้าวไข่เจียวมาม่า',price:35,active:true},
-    {id:'f3',name:'ข้าวไก่ทอดเทอริยากิ',price:50,active:true},
-    {id:'f4',name:'มาม่าต้มยำน้ำข้น',price:50,spicy:true,active:true},
-    {id:'f5',name:'มาม่าเส้นหมี่น้ำใส',price:35,active:true},
-    {id:'f6',name:'ควกต้มโคล้ง',price:50,active:true},
-    {id:'f7',name:'โซดาต้มยำ',price:50,spicy:true,active:true},
-    {id:'f8',name:'มาม่าเผ็ด',price:65,spicy:true,active:true},
-    {id:'f9',name:'ข้าวเปล่า',price:10,active:true},
-  ],
-  "ผลไม้": [
-    {id:'p1',name:'มะม่วงทรงเครื่อง',price:35,active:true},
-  ]
+const CATEGORY_EMOJI = {
+  ทั้งหมด: "🍽️",
+  Tea: "🥤",
+  Coffee: "☕",
+  Milk: "🥛",
+  "Italian Soda": "🧋",
 };
-
-const CAT_EMOJI = {"เครื่องดื่ม":"🥤","ของทานเล่น":"🍟","ขนมปัง":"🍞","อาหาร":"🍚","ผลไม้":"🥭"};
 
 const initialOrders = [
   {id:1, dispId:'#0001', table:5, time:'18:20', status:'done', paid:false,
@@ -161,11 +128,7 @@ const initialPayments = [
 
 function money(n){ return '฿' + n.toLocaleString('th-TH', {minimumFractionDigits: n%1? 2:0}); }
 function findMenuItem(id){
-  for(const category in MENU){
-    const item = MENU[category].find(x=>x.id===id);
-    if(item) return {...item, category};
-  }
-  return null;
+  return menuData.find((item) => String(item.id) === String(id)) || null;
 }
 
 export default function Customer(){
@@ -174,7 +137,7 @@ export default function Customer(){
   const [customer, setCustomer] = useState({
     table:5,
     tab:'menu',
-    category:'เครื่องดื่ม',
+    category: categoryData[0] || 'ทั้งหมด',
     search:'',
     cart:[],
     detailItem:null,
@@ -196,7 +159,12 @@ export default function Customer(){
   }, []);
 
   const filteredItems = useMemo(() => {
-    return MENU[customer.category].filter(it => it.name.includes(customer.search));
+    const query = customer.search.toLowerCase();
+    return menuData.filter((it) => {
+      const matchesCategory = customer.category === 'ทั้งหมด' || it.category === customer.category;
+      const matchesSearch = it.name.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
   }, [customer.category, customer.search]);
 
   const cartTotal = useMemo(() => customer.cart.reduce((sum, item) => sum + item.price * item.qty, 0), [customer.cart]);
@@ -233,18 +201,33 @@ export default function Customer(){
   function custSetOpt(key, value){ setCustomerOpts({[key]: value}); }
   function custQty(delta){ setCustomerOpts({qty: Math.max(1, (customer.opts.qty || 1) + delta)}); }
 
-  function custAddToCart(){
-    if (!detailItem) return;
-    const noteParts = [customer.opts.sweet, customer.opts.spicy, customer.opts.sauce].filter(Boolean);
-    const newItem = {
-      name: detailItem.name,
-      price: detailItem.price,
-      qty: customer.opts.qty || 1,
-      note: noteParts.join(' · '),
-    };
-    setCustomer(prev => ({...prev, cart:[...prev.cart, newItem], detailItem:null, opts:{}}));
-    showToast(`เพิ่ม "${detailItem.name}" ลงตะกร้าแล้ว`);
-  }
+  function custAddToCart() {
+  if (!detailItem) return;
+
+  const noteParts = [
+    customer.opts.sweet,
+    customer.opts.spicy,
+    customer.opts.sauce,
+  ].filter(Boolean);
+
+  const newItem = {
+    sku: detailItem.sku,          // เพิ่ม SKU
+    id: detailItem.id,            // เพิ่ม id
+    name: detailItem.name,
+    price: detailItem.price,
+    qty: customer.opts.qty || 1,
+    note: noteParts.join(" · "),
+  };
+
+  setCustomer((prev) => ({
+    ...prev,
+    cart: [...prev.cart, newItem],
+    detailItem: null,
+    opts: {},
+  }));
+
+  showToast(`เพิ่ม "${detailItem.name}" ลงตะกร้าแล้ว`);
+}
 
   function custRemoveCart(index){
     setCustomer(prev => ({...prev, cart: prev.cart.filter((_, i) => i !== index)}));
@@ -285,8 +268,8 @@ export default function Customer(){
                       customer={customer}
                       filteredItems={filteredItems}
                       money={money}
-                      catEmoji={CAT_EMOJI}
-                      menu={MENU}
+                      catEmoji={CATEGORY_EMOJI}
+                      categories={categoryData}
                       onSearch={custSearch}
                       onSetCat={custSetCat}
                       onOpenItem={custOpenItem}
