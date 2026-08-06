@@ -1,7 +1,13 @@
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import dotenv from "dotenv";
+import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 import pool from "./db.js";
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -9,6 +15,13 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
 const ORDER_STATUSES = ["waiting", "cooking", "served", "completed", "cancelled"];
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 function nowThai() {
   return new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
@@ -63,6 +76,50 @@ function formatOrderRow(o, items) {
   };
 }
 
+function uploadBufferToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      reject(new Error("Cloudinary credentials ยังไม่ถูกตั้งค่าใน .env"));
+      return;
+    }
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: "chamakmai/menu", resource_type: "image" },
+      (error, result) => {
+        if (error || !result) {
+          reject(error || new Error("อัปโหลดรูปไม่สำเร็จ"));
+          return;
+        }
+        resolve(result);
+      }
+    );
+
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(uploadStream);
+  });
+}
+
+async function ensureCategoriesTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS categories (
+      category_id INT PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(50) NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  const [rows] = await pool.query(
+    "SELECT DISTINCT category FROM menu_items WHERE category IS NOT NULL"
+  );
+
+  for (const row of rows) {
+    if (!row.category) continue;
+    await pool.query("INSERT IGNORE INTO categories (name) VALUES (?)", [row.category]);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // เมนู (menu_items) — รวม sku
 // ---------------------------------------------------------------------------
@@ -89,13 +146,47 @@ app.get("/api/menu", async (req, res) => {
 
 app.get("/api/categories", async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT DISTINCT category FROM menu_items WHERE category IS NOT NULL"
-    );
-    res.json(["ทั้งหมด", ...rows.map((r) => r.category)]);
+    await ensureCategoriesTable();
+    const [rows] = await pool.query("SELECT name FROM categories ORDER BY name ASC");
+    res.json(["ทั้งหมด", ...rows.map((r) => r.name)]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "โหลดหมวดหมู่ไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/categories", async (req, res) => {
+  try {
+    const { name } = req.body || {};
+    const trimmed = String(name || "").trim();
+
+    if (!trimmed) {
+      return res.status(400).json({ error: "กรุณากรอกชื่อหมวดหมู่" });
+    }
+
+    await ensureCategoriesTable();
+    const [result] = await pool.query("INSERT INTO categories (name) VALUES (?)", [trimmed]);
+    res.status(201).json({ id: result.insertId, name: trimmed });
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "หมวดหมู่นี้มีอยู่แล้ว" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "เพิ่มหมวดหมู่ไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/menu/upload", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "กรุณาเลือกไฟล์ภาพก่อน" });
+    }
+
+    const result = await uploadBufferToCloudinary(req.file.buffer);
+    res.json({ imageUrl: result.secure_url, publicId: result.public_id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "อัปโหลดรูปไม่สำเร็จ" });
   }
 });
 
@@ -313,23 +404,95 @@ app.post("/api/menu", async (req, res) => {
   }
 });
 
-// PATCH /api/menu/:id  body: { isAvailable }  — เปิด/ปิดการขาย
+// PATCH /api/menu/:id  body: { isAvailable, sku, name, type, category, price, imageUrl }
 app.patch("/api/menu/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { isAvailable } = req.body || {};
-    if (typeof isAvailable !== "boolean") {
-      return res.status(400).json({ error: "ต้องระบุ isAvailable เป็น true/false" });
+    const { isAvailable, sku, name, type, category, price, imageUrl } = req.body || {};
+    const updates = [];
+    const values = [];
+
+    if (typeof isAvailable === "boolean") {
+      updates.push("is_available = ?");
+      values.push(isAvailable ? 1 : 0);
     }
-    const [result] = await pool.query("UPDATE menu_items SET is_available = ? WHERE menu_id = ?", [
-      isAvailable ? 1 : 0,
-      id,
-    ]);
+
+    if (sku !== undefined) {
+      updates.push("sku = ?");
+      values.push(sku || null);
+    }
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+      if (!trimmedName) {
+        return res.status(400).json({ error: "ชื่อเมนูไม่ถูกต้อง" });
+      }
+      updates.push("name = ?");
+      values.push(trimmedName);
+    }
+
+    if (type !== undefined) {
+      if (!["food", "drink"].includes(type)) {
+        return res.status(400).json({ error: "type ต้องเป็น food หรือ drink" });
+      }
+      updates.push("type = ?");
+      values.push(type);
+    }
+
+    if (category !== undefined) {
+      updates.push("category = ?");
+      values.push(category || null);
+    }
+
+    if (price !== undefined) {
+      const numericPrice = Number(price);
+      if (Number.isNaN(numericPrice) || numericPrice < 0) {
+        return res.status(400).json({ error: "ราคาไม่ถูกต้อง" });
+      }
+      updates.push("price = ?");
+      values.push(numericPrice);
+    }
+
+    if (imageUrl !== undefined) {
+      updates.push("image_url = ?");
+      values.push(imageUrl || null);
+    }
+
+    if (!updates.length) {
+      return res.status(400).json({ error: "ไม่มีข้อมูลที่ต้องการอัปเดต" });
+    }
+
+    values.push(Number(id));
+    const [result] = await pool.query(`UPDATE menu_items SET ${updates.join(", ")} WHERE menu_id = ?`, values);
     if (result.affectedRows === 0) return res.status(404).json({ error: "ไม่พบเมนูนี้" });
-    res.json({ id: Number(id), active: isAvailable });
+
+    const [rows] = await pool.query("SELECT * FROM menu_items WHERE menu_id = ?", [id]);
+    const row = rows[0];
+    res.json({
+      id: Number(id),
+      sku: row.sku,
+      name: row.name,
+      type: row.type,
+      category: row.category,
+      price: Number(row.price),
+      image: row.image_url,
+      active: !!row.is_available,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "อัปเดตสถานะเมนูไม่สำเร็จ" });
+    res.status(500).json({ error: "อัปเดตเมนูไม่สำเร็จ" });
+  }
+});
+
+app.delete("/api/menu/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query("DELETE FROM menu_items WHERE menu_id = ?", [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: "ไม่พบเมนูนี้" });
+    res.json({ success: true, id: Number(id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "ลบเมนูไม่สำเร็จ" });
   }
 });
 

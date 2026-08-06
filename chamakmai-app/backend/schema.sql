@@ -17,6 +17,7 @@ USE chamakmai;
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS `tables`;
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS menu_items;
 DROP TABLE IF EXISTS users;
 
@@ -36,7 +37,16 @@ CREATE TABLE menu_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
--- 2) ตารางข้อมูลการสั่งซื้อ — หัวบิล (orders)
+-- 2) ตารางหมวดหมู่อาหารและเครื่องดื่ม (categories)
+-- ----------------------------------------------------------------
+CREATE TABLE categories (
+  category_id     INT PRIMARY KEY AUTO_INCREMENT,
+  name            VARCHAR(50) NOT NULL UNIQUE,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- 3) ตารางข้อมูลการสั่งซื้อ — หัวบิล (orders)
 -- ----------------------------------------------------------------
 CREATE TABLE orders (
   order_id        INT PRIMARY KEY AUTO_INCREMENT,
@@ -49,7 +59,7 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
--- 3) ตารางรายละเอียดการสั่งซื้อ (order_items)
+-- 4) ตารางรายละเอียดการสั่งซื้อ (order_items)
 -- ----------------------------------------------------------------
 CREATE TABLE order_items (
   order_item_id     INT PRIMARY KEY AUTO_INCREMENT,
@@ -65,7 +75,7 @@ CREATE TABLE order_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
--- 4) ตารางสถานะโต๊ะ (tables)
+-- 5) ตารางสถานะโต๊ะ (tables)
 -- ----------------------------------------------------------------
 CREATE TABLE `tables` (
   table_id          VARCHAR(10) PRIMARY KEY,
@@ -76,7 +86,7 @@ CREATE TABLE `tables` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
--- 5) ตารางผู้ใช้งานระบบ (users)
+-- 6) ตารางผู้ใช้งานระบบ (users)
 --    เพิ่ม phone, position (นอกเหนือดีไซน์เดิม) เพื่อรองรับหน้า "จัดการพนักงาน"
 --    ที่มี UI อยู่แล้ว (role = สิทธิ์การเข้าถึง, position = ตำแหน่งงาน)
 -- ----------------------------------------------------------------
