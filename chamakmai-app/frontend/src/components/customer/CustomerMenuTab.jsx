@@ -41,7 +41,11 @@ export default function CustomerMenuTab({
             return (
               <div key={it.id} className={`menu-item ${!isAvailable ? "soldout" : ""}`}>
                 <div className="mi-left">
-                  <div className="mi-thumb">{catEmoji[it.category] || catEmoji[customer.category] || "🍽️"}</div>
+                  {it.image ? (
+                    <img src={it.image} alt={it.name} style={{ width: 46, height: 46, objectFit: "cover", borderRadius: 10, marginRight: 12 }} />
+                  ) : (
+                    <div className="mi-thumb">{catEmoji[it.category] || catEmoji[customer.category] || "🍽️"}</div>
+                  )}
                   <div>
                     <div className="mi-name">{it.name}</div>
                     {it.sku ? <div className="mi-sku">SKU: {it.sku}</div> : null}

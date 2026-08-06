@@ -2,7 +2,11 @@
 import {
   fetchMenu,
   fetchCategories,
+  createCategory,
   createMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
+  uploadMenuImage,
   setMenuItemAvailability,
   fetchPayments,
   fetchStaff,
@@ -54,6 +58,8 @@ const styles = `
   .btn:active{transform:scale(0.97);}
   .btn-primary{background:var(--amber);color:#fff;}
   .btn-primary:hover{background:var(--amber-dark);}
+  .btn-danger{background:var(--clay);color:#fff;}
+  .btn-danger:hover{background:#b91c1c;}
   .btn:disabled{opacity:.5;cursor:not-allowed;}
 
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
@@ -71,8 +77,11 @@ const styles = `
   .bar-row .bv{width:26px;text-align:right;font-size:12px;font-weight:700;color:var(--brown-800);}
 
   table.data{width:100%;border-collapse:collapse;font-size:13.5px;}
-  table.data th{text-align:left;font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid var(--line);}
-  table.data td{padding:11px 10px;border-bottom:1px solid var(--line);}
+  table.data th{text-align:left;font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid var(--line);} 
+  table.data th.center{ text-align:center; }
+  table.data td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle;} 
+  table.data td.center{ text-align:center; } 
+  table.data td.left{ text-align:left; }
   table.data tr:last-child td{border-bottom:none;}
   .toggle{width:38px;height:22px;border-radius:20px;background:var(--line);position:relative;border:none;flex-shrink:0;}
   .toggle.on{background:var(--jade);}
@@ -109,7 +118,16 @@ export default function Owner() {
   const [menu, setMenu] = useState([]);
   const [categories, setCategories] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newItem, setNewItem] = useState({ sku: "", name: "", price: "", category: "", type: "drink" });
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingItem, setEditingItem] = useState({ sku: "", name: "", price: "", category: "", type: "drink" });
+  const [editImageFile, setEditImageFile] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState("");
 
   // การชำระเงิน (สำหรับแดชบอร์ด)
   const [payments, setPayments] = useState([]);
@@ -222,6 +240,32 @@ export default function Owner() {
     setOwnerState((prev) => ({ ...prev, menuCat }));
   }
 
+  async function ownerAddCategory() {
+    const trimmed = categoryDraft.trim();
+
+    if (!trimmed) {
+      showToast("กรุณากรอกชื่อหมวดหมู่");
+      return;
+    }
+    if (categories.some((cat) => cat.toLowerCase() === trimmed.toLowerCase())) {
+      showToast("หมวดหมู่นี้มีอยู่แล้ว");
+      return;
+    }
+
+    try {
+      const created = await createCategory(trimmed);
+      const newName = created?.name || trimmed;
+      setCategories((prev) => [...prev, newName]);
+      setOwnerState((prev) => ({ ...prev, menuCat: newName }));
+      setNewItem((prev) => ({ ...prev, category: newName }));
+      setCategoryDraft("");
+      setIsAddingCategory(false);
+      showToast(`เพิ่มหมวดหมู่ "${newName}" แล้ว`);
+    } catch (err) {
+      showToast("เพิ่มหมวดหมู่ไม่สำเร็จ: " + err.message);
+    }
+  }
+
   async function ownerToggleItem(item) {
     try {
       await setMenuItemAvailability(item.id, !item.active);
@@ -231,28 +275,126 @@ export default function Owner() {
     }
   }
 
+  function resetMenuForm() {
+    setNewItem({ sku: "", name: "", price: "", category: "", type: "drink" });
+    setSelectedImage(null);
+    setImagePreview("");
+    setEditingItemId(null);
+    setEditingItem({ sku: "", name: "", price: "", category: "", type: "drink" });
+    setEditImageFile(null);
+    setEditImagePreview("");
+  }
+
+  function startEditItem(item) {
+    setEditingItemId(item.id);
+    setEditingItem({
+      sku: item.sku || "",
+      name: item.name || "",
+      price: String(item.price ?? ""),
+      category: item.category || "",
+      type: item.type || "drink",
+    });
+    setEditImagePreview(item.image || "");
+    setEditImageFile(null);
+  }
+
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result);
+    reader.readAsDataURL(file);
+  }
+
   async function ownerAddItem() {
     const price = parseFloat(newItem.price);
     if (!newItem.name.trim() || !price) {
       showToast("กรุณากรอกชื่อเมนูและราคาให้ครบถ้วน");
       return;
     }
+
     const category = newItem.category.trim() || ownerState.menuCat;
     try {
+      let imageUrl = null;
+      if (selectedImage) {
+        setUploadingImage(true);
+        const uploadResult = await uploadMenuImage(selectedImage);
+        imageUrl = uploadResult.imageUrl;
+      }
+
       await createMenuItem({
         sku: newItem.sku.trim() || null,
         name: newItem.name.trim(),
         type: newItem.type,
         category,
         price,
-        imageUrl: null,
+        imageUrl,
         optionsConfig: null,
       });
       showToast(`เพิ่มเมนู "${newItem.name.trim()}" แล้ว`);
-      setNewItem({ sku: "", name: "", price: "", category: "", type: "drink" });
+      resetMenuForm();
       loadMenu();
     } catch (err) {
       showToast("เพิ่มเมนูไม่สำเร็จ: " + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function handleEditImageSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setEditImagePreview(reader.result);
+    reader.readAsDataURL(file);
+  }
+
+  async function ownerUpdateItem() {
+    const price = parseFloat(editingItem.price);
+    if (!editingItem.name.trim() || !price) {
+      showToast("กรุณากรอกชื่อเมนูและราคาให้ครบถ้วน");
+      return;
+    }
+
+    try {
+      let imageUrl = editImagePreview || null;
+      if (editImageFile) {
+        setUploadingImage(true);
+        const uploadResult = await uploadMenuImage(editImageFile);
+        imageUrl = uploadResult.imageUrl;
+      }
+
+      const updated = await updateMenuItem(editingItemId, {
+        sku: editingItem.sku.trim() || null,
+        name: editingItem.name.trim(),
+        type: editingItem.type,
+        category: editingItem.category.trim() || null,
+        price,
+        imageUrl,
+      });
+
+      setMenu((prev) => prev.map((m) => (m.id === editingItemId ? { ...m, ...updated, image: updated.image } : m)));
+      showToast(`อัปเดตเมนู "${editingItem.name.trim()}" แล้ว`);
+      resetMenuForm();
+      loadMenu();
+    } catch (err) {
+      showToast("อัปเดตเมนูไม่สำเร็จ: " + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function ownerDeleteItem(item) {
+    if (!window.confirm(`ลบเมนู "${item.name}" หรือไม่?`)) return;
+    try {
+      await deleteMenuItem(item.id);
+      setMenu((prev) => prev.filter((m) => m.id !== item.id));
+      showToast(`ลบเมนู "${item.name}" แล้ว`);
+      if (editingItemId === item.id) resetMenuForm();
+    } catch (err) {
+      showToast("ลบเมนูไม่สำเร็จ: " + err.message);
     }
   }
 
@@ -381,41 +523,108 @@ export default function Owner() {
     const itemsInCat = menu.filter((it) => it.category === ownerState.menuCat);
     return (
       <>
-        <div className="subnav">
-          {categories.map((cat) => (
-            <button key={cat} type="button" className={ownerState.menuCat === cat ? "active" : ""} onClick={() => ownerSetMenuCat(cat)}>
-              {cat}
+        <div className="subnav" style={{ justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", flex: 1 }}>
+            {categories.map((cat) => (
+              <button key={cat} type="button" className={ownerState.menuCat === cat ? "active" : ""} onClick={() => ownerSetMenuCat(cat)}>
+                {cat}
+              </button>
+            ))}
+            {isAddingCategory ? (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  value={categoryDraft}
+                  onChange={(e) => setCategoryDraft(e.target.value)}
+                  placeholder="ชื่อหมวดหมู่ใหม่"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") ownerAddCategory();
+                  }}
+                  style={{ minWidth: 180, border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 10px" }}
+                />
+                <button type="button" className="btn btn-primary" onClick={ownerAddCategory} style={{ padding: "8px 12px" }}>
+                  บันทึก
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setIsAddingCategory(false);
+                    setCategoryDraft("");
+                  }}
+                  style={{ padding: "8px 12px" }}
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            ) : null}
+          </div>
+          {!isAddingCategory ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setIsAddingCategory(true);
+                setCategoryDraft("");
+              }}
+              style={{
+                padding: "8px 12px",
+                background: "#D97706",
+                color: "#fff",
+                border: "1px solid #B45F04",
+                boxShadow: "0 2px 8px rgba(217, 119, 6, 0.25)",
+                fontWeight: 800,
+              }}
+            >
+              + เพิ่มหมวด
             </button>
-          ))}
+          ) : null}
         </div>
         <div className="card">
           <table className="data">
             <thead>
               <tr>
-                <th>ชื่อเมนู</th>
-                <th>SKU</th>
-                <th>ราคา</th>
-                <th>สถานะ</th>
-                <th></th>
+                <th className="center">รูป</th>
+                <th className="left">ชื่อเมนู</th>
+                <th className="left">SKU</th>
+                <th className="left">ราคา</th>
+                <th className="center">สถานะ</th>
+                <th className="center">จัดการ</th>
               </tr>
             </thead>
             <tbody>
               {itemsInCat.map((it) => (
                 <tr key={it.id}>
-                  <td style={{ fontWeight: 600 }}>{it.name}</td>
-                  <td className="mono muted">{it.sku || "-"}</td>
-                  <td>{money(it.price)}</td>
-                  <td>
+                  <td className="center">
+                    {it.image ? (
+                      <img src={it.image} alt={it.name} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, borderRadius: 8, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>📷</div>
+                    )}
+                  </td>
+                  <td className="left" style={{ fontWeight: 600 }}>{it.name}</td>
+                  <td className="left mono muted">{it.sku || "-"}</td>
+                  <td className="left">{money(it.price)}</td>
+                  <td className="center">
                     <button type="button" className={`toggle ${it.active ? "on" : ""}`} onClick={() => ownerToggleItem(it)}>
                       <span className="knob" />
                     </button>
                   </td>
-                  <td className="muted" style={{ fontSize: 12 }}>{it.active ? "เปิดขาย" : "ปิดขาย"}</td>
+                  <td className="center muted" style={{ fontSize: 12 }}>{it.active ? "เปิดขาย" : "ปิดขาย"}</td>
+                  <td className="center">
+                    <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                      <button type="button" className="btn" onClick={() => startEditItem(it)}>
+                        แก้ไข
+                      </button>
+                      <button type="button" className="btn btn-danger" onClick={() => ownerDeleteItem(it)}>
+                        ลบ
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!itemsInCat.length ? (
                 <tr>
-                  <td colSpan={5} className="muted" style={{ textAlign: "center", padding: 20 }}>
+                  <td colSpan={7} className="muted" style={{ textAlign: "center", padding: 20 }}>
                     ยังไม่มีเมนูในหมวดนี้
                   </td>
                 </tr>
@@ -424,37 +633,88 @@ export default function Owner() {
           </table>
         </div>
         <hr className="divider" />
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>เพิ่มเมนูใหม่</div>
-        <div className="form-grid" style={{ gridTemplateColumns: "1.2fr 1fr 1fr 1fr", alignItems: "end" }}>
-          <div className="field">
-            <label>ชื่อเมนู</label>
-            <input value={newItem.name} onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))} placeholder="เช่น ชาดำเย็น" />
-          </div>
-          <div className="field">
-            <label>SKU</label>
-            <input value={newItem.sku} onChange={(e) => setNewItem((p) => ({ ...p, sku: e.target.value }))} placeholder="เช่น TEA003" />
-          </div>
-          <div className="field">
-            <label>ราคา (฿)</label>
-            <input type="number" value={newItem.price} onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))} placeholder="30" />
-          </div>
-          <div className="field">
-            <label>ประเภท</label>
-            <select value={newItem.type} onChange={(e) => setNewItem((p) => ({ ...p, type: e.target.value }))}>
-              <option value="drink">เครื่องดื่ม (drink)</option>
-              <option value="food">อาหาร (food)</option>
-            </select>
-          </div>
-        </div>
-        <div className="form-grid" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" }}>
-          <div className="field">
-            <label>หมวดหมู่ (เว้นว่าง = ใช้หมวดที่เลือกอยู่: {ownerState.menuCat})</label>
-            <input value={newItem.category} onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))} placeholder={ownerState.menuCat} />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={ownerAddItem}>
-            เพิ่มเมนูใหม่
-          </button>
-        </div>
+        {!editingItemId ? (
+          <>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>เพิ่มเมนูใหม่</div>
+            <div className="form-grid" style={{ gridTemplateColumns: "1.2fr 1fr 1fr 1fr", alignItems: "end" }}>
+              <div className="field">
+                <label>ชื่อเมนู</label>
+                <input value={newItem.name} onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))} placeholder="เช่น ชาดำเย็น" />
+              </div>
+              <div className="field">
+                <label>SKU</label>
+                <input value={newItem.sku} onChange={(e) => setNewItem((p) => ({ ...p, sku: e.target.value }))} placeholder="เช่น TEA003" />
+              </div>
+              <div className="field">
+                <label>ราคา (฿)</label>
+                <input type="number" value={newItem.price} onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))} placeholder="30" />
+              </div>
+              <div className="field">
+                <label>ประเภท</label>
+                <select value={newItem.type} onChange={(e) => setNewItem((p) => ({ ...p, type: e.target.value }))}>
+                  <option value="drink">เครื่องดื่ม (drink)</option>
+                  <option value="food">อาหาร (food)</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-grid" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" }}>
+              <div className="field">
+                <label>หมวดหมู่ (เว้นว่าง = ใช้หมวดที่เลือกอยู่: {ownerState.menuCat})</label>
+                <input value={newItem.category} onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))} placeholder={ownerState.menuCat} />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={ownerAddItem} disabled={uploadingImage}>
+                {uploadingImage ? "กำลังอัปโหลดรูป..." : "เพิ่มเมนูใหม่"}
+              </button>
+            </div>
+            <div className="field" style={{ marginTop: 8 }}>
+              <label>รูปภาพเมนู</label>
+              <input type="file" accept="image/*" onChange={handleImageSelect} />
+              {imagePreview ? <img src={imagePreview} alt="preview" style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 10, marginTop: 8 }} /> : null}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>แก้ไขเมนูที่เลือก</div>
+            <div className="form-grid" style={{ gridTemplateColumns: "1.2fr 1fr 1fr 1fr", alignItems: "end" }}>
+              <div className="field">
+                <label>ชื่อเมนู</label>
+                <input value={editingItem.name} onChange={(e) => setEditingItem((p) => ({ ...p, name: e.target.value }))} placeholder="เช่น ชาดำเย็น" />
+              </div>
+              <div className="field">
+                <label>SKU</label>
+                <input value={editingItem.sku} onChange={(e) => setEditingItem((p) => ({ ...p, sku: e.target.value }))} placeholder="เช่น TEA003" />
+              </div>
+              <div className="field">
+                <label>ราคา (฿)</label>
+                <input type="number" value={editingItem.price} onChange={(e) => setEditingItem((p) => ({ ...p, price: e.target.value }))} placeholder="30" />
+              </div>
+              <div className="field">
+                <label>ประเภท</label>
+                <select value={editingItem.type} onChange={(e) => setEditingItem((p) => ({ ...p, type: e.target.value }))}>
+                  <option value="drink">เครื่องดื่ม (drink)</option>
+                  <option value="food">อาหาร (food)</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-grid" style={{ gridTemplateColumns: "1fr auto auto", alignItems: "end" }}>
+              <div className="field">
+                <label>หมวดหมู่</label>
+                <input value={editingItem.category} onChange={(e) => setEditingItem((p) => ({ ...p, category: e.target.value }))} placeholder={ownerState.menuCat} />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={ownerUpdateItem} disabled={uploadingImage}>
+                {uploadingImage ? "กำลังอัปโหลดรูป..." : "บันทึกการแก้ไข"}
+              </button>
+              <button type="button" className="btn" onClick={resetMenuForm}>
+                ยกเลิก
+              </button>
+            </div>
+            <div className="field" style={{ marginTop: 8 }}>
+              <label>รูปภาพเมนู</label>
+              <input type="file" accept="image/*" onChange={handleEditImageSelect} />
+              {editImagePreview ? <img src={editImagePreview} alt="preview" style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 10, marginTop: 8 }} /> : null}
+            </div>
+          </>
+        )}
       </>
     );
   }

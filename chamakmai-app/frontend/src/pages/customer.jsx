@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import CustomerHeader from "../components/customer/CustomerHeader";
 import CustomerMenuTab from "../components/customer/CustomerMenuTab";
 import CustomerCartTab from "../components/customer/CustomerCartTab";
@@ -129,6 +130,12 @@ function tableCode(tableNumber) {
 }
 
 export default function Customer() {
+  // อ่านเลขโต๊ะจาก URL เช่น /customer/5 -> tableNumber = "5"
+  // (ลูกค้าเข้าหน้านี้ผ่านการสแกน QR code ที่ติดไว้บนโต๊ะ ซึ่งแต่ละโต๊ะจะมี URL ไม่ซ้ำกัน)
+  const { tableNumber } = useParams();
+  const parsedTable = parseInt(tableNumber, 10);
+  const validTable = Number.isInteger(parsedTable) && parsedTable > 0;
+
   const [menuData, setMenuData] = useState([]);
   const [categoryData, setCategoryData] = useState(["ทั้งหมด"]);
   const [orders, setOrders] = useState([]);
@@ -138,7 +145,7 @@ export default function Customer() {
   const [submitting, setSubmitting] = useState(false);
 
   const [customer, setCustomer] = useState({
-    table: 5,
+    table: validTable ? parsedTable : null,
     tab: "menu",
     category: "ทั้งหมด",
     search: "",
@@ -204,6 +211,7 @@ export default function Customer() {
   // โพลลิ่งออเดอร์ + ประวัติการชำระเงินของโต๊ะนี้ จากหลังบ้าน (ใช้รหัสโต๊ะ เช่น T05)
   // ---------------------------------------------------------------------
   useEffect(() => {
+    if (!validTable) return; // ไม่มีเลขโต๊ะที่ถูกต้องใน URL ก็ไม่ต้องโพลลิ่งอะไร
     let cancelled = false;
     const code = tableCode(customer.table);
 
@@ -225,7 +233,7 @@ export default function Customer() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [customer.table]);
+  }, [customer.table, validTable]);
 
   function findMenuItem(id) {
     return menuData.find((item) => String(item.id) === String(id)) || null;
@@ -393,6 +401,31 @@ export default function Customer() {
       return <CustomerHistoryTab paidForTable={paidForTable} money={money} />;
     }
     return null;
+  }
+
+  // ไม่มีเลขโต๊ะที่ถูกต้องใน URL (เช่น เข้าหน้า /customer เฉยๆ โดยไม่ได้สแกน QR code)
+  if (!validTable) {
+    return (
+      <div id="app">
+        <style dangerouslySetInnerHTML={{ __html: styles }} />
+        <div className="stage">
+          <div className="stage-inner">
+            <div className="phone-wrap">
+              <div className="phone">
+                <div className="phone-screen">
+                  <div className="empty-state" style={{ paddingTop: 90 }}>
+                    <div className="glyph">📷</div>
+                    กรุณาสแกน QR Code ที่วางอยู่บนโต๊ะของคุณ
+                    <br />
+                    เพื่อเข้าสู่เมนูของร้าน
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

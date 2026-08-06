@@ -32,12 +32,55 @@ export function fetchCategories() {
   return request("/categories");
 }
 
+export function createCategory(name) {
+  return request("/categories", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
 // payload: { sku, name, type, category, price, imageUrl, optionsConfig }
 export function createMenuItem(payload) {
   return request("/menu", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function updateMenuItem(id, payload) {
+  return request(`/menu/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteMenuItem(id) {
+  return request(`/menu/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function uploadMenuImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`${API_BASE_URL}/menu/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json();
 }
 
 export function setMenuItemAvailability(id, isAvailable) {

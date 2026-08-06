@@ -41,7 +41,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
-import Customer from "./pages/Customer";
+import Customer from "./pages/Customer"; 
 import Kitchen from "./pages/Kitchen";
 import Cashier from "./pages/Cashier";
 import Owner from "./pages/Owner";
@@ -50,7 +50,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/customer" element={<Customer />} />
+      <Route path="/customer/:tableNumber" element={<Customer />} />
       <Route path="/kitchen" element={<Kitchen />} />
       <Route path="/cashier" element={<Cashier />} />
       <Route path="/owner" element={<Owner />} />
