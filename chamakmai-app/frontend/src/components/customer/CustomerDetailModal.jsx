@@ -1,86 +1,79 @@
 import React from "react";
+import CustomerModalFrame from "./CustomerModalFrame";
 
-// แปลชื่อคีย์ใน options_config เป็นภาษาไทยให้อ่านง่าย ถ้าไม่เจอในนี้จะโชว์คีย์ดิบแทน
-const OPTION_LABELS = {
-  sweetness: "ระดับความหวาน",
-  spicy: "ระดับความเผ็ด",
-  spiciness: "ระดับความเผ็ด",
-  topping: "ท็อปปิ้ง",
-  sauce: "เลือกซอส",
-  size: "ขนาด",
-};
-
-export default function CustomerDetailModal({
-  detailItem,
-  customer,
-  money,
-  onClose,
-  onSetOpt,
-  onQty,
-  onAddToCart,
-}) {
+export default function CustomerDetailModal({ detailItem, customer, money, onClose, onSetOpt, onQty, onAddToCart }) {
   if (!detailItem) return null;
+  const groups = detailItem.optionGroups || [];
+  const optionTotal = groups.reduce((sum, group) => {
+    const selected = customer.opts[`group_${group.id}`] || [];
+    return sum + group.items.filter((item) => selected.some((id) => String(id) === String(item.id))).reduce((total, item) => total + Number(item.priceDelta || 0), 0);
+  }, 0);
+  const canAdd = groups.every((group) => {
+    const selected = customer.opts[`group_${group.id}`] || [];
+    const valid = selected.filter((id) => group.items.some((item) => String(item.id) === String(id)));
+    return (!group.required || valid.length > 0) && valid.length === selected.length && valid.length <= Number(group.maxSelections || 1);
+  }) && (detailItem.active ?? detailItem.status !== "unavailable");
 
-  const optionGroups = Object.entries(detailItem.options || {});
+  function toggleOption(group, itemId) {
+    const key = `group_${group.id}`;
+    const selected = customer.opts[key] || [];
+    const alreadySelected = selected.some((id) => String(id) === String(itemId));
+    const max = Number(group.maxSelections || 1);
+    if (alreadySelected) {
+      if (max > 1 || !group.required) onSetOpt(key, selected.filter((id) => String(id) !== String(itemId)));
+    } else if (max === 1) {
+      onSetOpt(key, [itemId]);
+    } else if (selected.length < max) {
+      onSetOpt(key, [...selected, itemId]);
+    }
+  }
 
   return (
-    <div
-      style={{ position: "absolute", inset: 0, background: "rgba(44,33,24,0.45)", display: "flex", alignItems: "flex-end", zIndex: 60 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div style={{ background: "var(--paper)", width: "100%", borderRadius: "20px 20px 0 0", padding: "20px 18px 22px", maxHeight: "88%", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 19 }}>{detailItem.name}</div>
-            {detailItem.sku ? (
-              <div className="mi-sku" style={{ marginTop: 2 }}>SKU: {detailItem.sku}</div>
-            ) : null}
-            <div className="mi-price" style={{ fontSize: 15, marginTop: 3 }}>
-              {money(detailItem.price)}
-            </div>
-          </div>
-          <button type="button" onClick={onClose} style={{ border: "none", background: "var(--cream-100)", width: 30, height: 30, borderRadius: "50%", fontSize: 15 }}>
-            ✕
-          </button>
+    <CustomerModalFrame titleId="customer-detail-title" onClose={onClose} sheet>
+      <div className="detail-title-row">
+        <div>
+          <h2 id="customer-detail-title">{detailItem.name}</h2>
+          <div className="mi-price">{money(Number(detailItem.price))}</div>
         </div>
-        <hr className="divider" />
-
-        {optionGroups.map(([key, values]) => (
-          <div key={key} style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>{OPTION_LABELS[key] || key}</div>
-            <div className="pill-group">
-              {(values || []).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`pill ${customer.opts[key] === value ? "active" : ""}`}
-                  onClick={() => onSetOpt(key, value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>จำนวน</div>
-          <div className="qty-stepper">
-            <button type="button" onClick={() => onQty(-1)}>
-              −
-            </button>
-            <span style={{ minWidth: 16, textAlign: "center", fontWeight: 700 }}>{customer.opts.qty || 1}</span>
-            <button type="button" onClick={() => onQty(1)}>
-              +
-            </button>
-          </div>
-        </div>
-        <button type="button" className="btn btn-primary btn-block" style={{ marginTop: 18, padding: 13 }} onClick={onAddToCart}>
-          เพิ่มลงตะกร้า · {money(detailItem.price * (customer.opts.qty || 1))}
-        </button>
+        <button type="button" className="icon-button" aria-label="ปิดรายละเอียดเมนู" onClick={onClose}>✕</button>
       </div>
-    </div>
+      <hr className="divider" />
+      {groups.map((group) => {
+        const selected = customer.opts[`group_${group.id}`] || [];
+        const max = Number(group.maxSelections || 1);
+        const full = selected.length >= max;
+        return (
+          <fieldset className="option-group" key={group.id}>
+            <legend>{group.name} <span className="muted">· {group.required ? "ต้องเลือก" : "ไม่จำเป็น"} · สูงสุด {max} รายการ</span></legend>
+            {group.items.map((item) => {
+              const checked = selected.some((id) => String(id) === String(item.id));
+              const disabled = max > 1 && full && !checked;
+              return (
+                <label key={item.id} className={`option-choice ${checked ? "selected" : ""} ${disabled ? "disabled" : ""}`}>
+                  <span>
+                    <input type={max === 1 && group.required ? "radio" : "checkbox"} name={`customer-option-${group.id}`} checked={checked} disabled={disabled} onChange={() => toggleOption(group, item.id)} />
+                    {item.name}
+                  </span>
+                  {Number(item.priceDelta || 0) !== 0 ? <strong>{Number(item.priceDelta) > 0 ? "+" : "−"}{money(Math.abs(Number(item.priceDelta)))}</strong> : null}
+                </label>
+              );
+            })}
+            {max > 1 && full ? <p className="option-feedback" role="status">เลือกครบ {max} รายการแล้ว ยกเลิกตัวเลือกเดิมเพื่อเลือกอย่างอื่น</p> : null}
+            {max === 1 && !group.required && selected.length > 0 ? <button type="button" className="text-button" onClick={() => onSetOpt(`group_${group.id}`, [])}>ไม่เลือก{group.name}</button> : null}
+          </fieldset>
+        );
+      })}
+      <div className="quantity-row">
+        <strong>จำนวน</strong>
+        <div className="qty-stepper">
+          <button type="button" aria-label="ลดจำนวน" disabled={(customer.opts.qty || 1) <= 1} onClick={() => onQty(-1)}>−</button>
+          <span>{customer.opts.qty || 1}</span>
+          <button type="button" aria-label="เพิ่มจำนวน" disabled={(customer.opts.qty || 1) >= 99} onClick={() => onQty(1)}>+</button>
+        </div>
+      </div>
+      <button type="button" className="btn btn-primary btn-block" style={{ marginTop: 18 }} onClick={onAddToCart} disabled={!canAdd}>
+        {canAdd ? `${customer.editCartIndex != null ? "บันทึกการแก้ไข" : "เพิ่มลงตะกร้า"} · ${money((Number(detailItem.price) + optionTotal) * (customer.opts.qty || 1))}` : "กรุณาตรวจสอบตัวเลือกและความพร้อมของเมนู"}
+      </button>
+    </CustomerModalFrame>
   );
 }

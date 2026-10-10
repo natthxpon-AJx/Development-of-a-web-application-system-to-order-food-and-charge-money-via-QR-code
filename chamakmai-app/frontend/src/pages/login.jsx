@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser } from "../services/api";
+import { checkConnection, loginUser } from "../services/api";
 
 const styles = `
   :root{
@@ -110,19 +110,31 @@ const styles = `
 // role='admin' ถือเป็นเจ้าของร้านเสมอ ส่วน staff ให้ดูจาก position
 function resolveRoute(user) {
   if (user.role === "admin") return "/owner";
+  if (user.position === "เจ้าของร้าน") return "/owner";
   if (user.position === "แคชเชียร์") return "/cashier";
   if (user.position === "ครัว") return "/kitchen";
-  if (user.position === "เจ้าของร้าน") return "/owner";
-  return "/owner"; // fallback เผื่อไม่มี position ระบุไว้
+  return "/";
 }
 
 export default function Login() {
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [connection, setConnection] = useState("checking");
+  const [formError, setFormError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const toastTimer = useRef(null);
   const usernameRef = useRef(null);
   const passwordRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = () => checkConnection().then(() => { if (!cancelled) setConnection("online"); }).catch(() => { if (!cancelled) setConnection("offline"); });
+    check();
+    const interval = setInterval(check, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   useEffect(() => {
     // load fonts (preserve original UI)
@@ -148,22 +160,23 @@ export default function Login() {
 
   async function handleFormSubmit(e) {
     e.preventDefault();
-    if (submitting) return;
+    if (submittingRef.current) return;
     const uVal = usernameRef.current.value.trim();
     const pVal = passwordRef.current.value;
 
+    submittingRef.current = true;
     setSubmitting(true);
+    setFormError(null);
     try {
       const user = await loginUser(uVal, pVal);
-      showToast('เข้าสู่ระบบสำเร็จ! กำลังนำทางไปยังหน้าระบบงาน...');
-      setTimeout(() => {
-        navigate(resolveRoute(user));
-      }, 1200);
+      navigate(resolveRoute(user), { replace: true });
     } catch (err) {
       showToast(err.message || 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      setFormError(err.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่');
       passwordRef.current.value = '';
       passwordRef.current.focus();
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -174,7 +187,7 @@ export default function Login() {
       <div className="app-window">
         <div className="app-titlebar">
           <div className="tleft"><span className="dot"></span>CM · เข้าสู่ระบบพนักงาน</div>
-          <div className="online">Online</div>
+          <div className="online" style={{ background: connection === "online" ? "var(--jade)" : "var(--ink-soft)" }} role="status">{connection === "online" ? "เชื่อมต่อแล้ว" : connection === "checking" ? "กำลังเชื่อมต่อ" : "เชื่อมต่อไม่ได้"}</div>
         </div>
 
         <div className="app-flex">
@@ -193,16 +206,18 @@ export default function Login() {
 
               <div className="form-group" style={{ marginBottom: 24 }}>
                 <label htmlFor="password">รหัสผ่าน (Password)</label>
-                <input ref={passwordRef} type="password" id="password" className="form-input" placeholder="ป้อนรหัสผ่าน" required autoComplete="current-password" />
+                <input ref={passwordRef} type={showPassword ? "text" : "password"} id="password" className="form-input" placeholder="ป้อนรหัสผ่าน" required autoComplete="current-password" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} aria-pressed={showPassword} style={{ marginTop: 8, border: 0, background: "transparent", color: "var(--brown-800)", padding: "8px 0" }}>{showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}</button>
               </div>
 
-              <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</button>
+              {formError && <p role="alert" style={{ color: "var(--clay)", fontSize: 13, marginBottom: 12 }}>{formError}</p>}
+              <button type="submit" className="btn btn-primary" disabled={submitting} aria-busy={submitting}>{submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</button>
             </form>
           </div>
         </div>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }

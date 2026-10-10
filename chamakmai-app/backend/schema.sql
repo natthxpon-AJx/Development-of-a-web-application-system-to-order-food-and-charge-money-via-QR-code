@@ -4,7 +4,8 @@
 -- + เพิ่ม phone, position ใน users (นอกเหนือจากดีไซน์เดิม) เพื่อรองรับ
 --   หน้าจัดการพนักงานของ Owner ที่มีอยู่แล้วในโปรเจกต์ (ชื่อ/เบอร์โทร/ตำแหน่ง)
 --
--- ไฟล์นี้ import ซ้ำได้อย่างปลอดภัย (DROP ตารางเดิมแล้วสร้างใหม่ทุกครั้ง)
+-- ใช้สร้างฐานข้อมูลตัวอย่างใหม่เท่านั้น: import ซ้ำจะลบข้อมูลเดิมทั้งหมด
+-- ระบบเดิมให้ใช้ npm start เพื่อเพิ่มคอลัมน์โดยไม่ล้างข้อมูล
 -- วิธีใช้: phpMyAdmin -> Import -> เลือกไฟล์นี้ -> Go
 -- ================================================================
 
@@ -15,7 +16,11 @@ USE chamakmai;
 
 -- ล้างของเดิมก่อน (เรียงตามลำดับ FK ที่พึ่งพากัน)
 DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS menu_option_groups;
+DROP TABLE IF EXISTS option_items;
+DROP TABLE IF EXISTS option_groups;
 DROP TABLE IF EXISTS `tables`;
+DROP TABLE IF EXISTS store_settings;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS menu_items;
@@ -32,8 +37,40 @@ CREATE TABLE menu_items (
   category        VARCHAR(50),
   price           DECIMAL(10,2) NOT NULL,
   image_url       TEXT,
-  is_available    BOOLEAN DEFAULT 1,
-  options_config  JSON NULL
+  is_available    BOOLEAN DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- 1.1) Template ตัวเลือกเสริมที่ใช้ซ้ำได้หลายเมนู
+-- ----------------------------------------------------------------
+CREATE TABLE option_groups (
+  option_group_id INT PRIMARY KEY AUTO_INCREMENT,
+  name            VARCHAR(100) NOT NULL,
+  is_required     BOOLEAN NOT NULL DEFAULT 0,
+  max_selections  INT NOT NULL DEFAULT 1,
+  sort_order      INT NOT NULL DEFAULT 0,
+  is_active       BOOLEAN NOT NULL DEFAULT 1,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CHECK (max_selections >= 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE option_items (
+  option_item_id  INT PRIMARY KEY AUTO_INCREMENT,
+  option_group_id INT NOT NULL,
+  name            VARCHAR(100) NOT NULL,
+  price_delta     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  sort_order      INT NOT NULL DEFAULT 0,
+  is_active       BOOLEAN NOT NULL DEFAULT 1,
+  FOREIGN KEY (option_group_id) REFERENCES option_groups(option_group_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE menu_option_groups (
+  menu_id         INT NOT NULL,
+  option_group_id INT NOT NULL,
+  sort_order      INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (menu_id, option_group_id),
+  FOREIGN KEY (menu_id) REFERENCES menu_items(menu_id) ON DELETE CASCADE,
+  FOREIGN KEY (option_group_id) REFERENCES option_groups(option_group_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
@@ -55,7 +92,15 @@ CREATE TABLE orders (
   status          ENUM('waiting','cooking','served','completed','cancelled') DEFAULT 'waiting',
   payment_method  VARCHAR(20) NULL,
   is_paid         BOOLEAN DEFAULT 0,
-  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  paid_at         DATETIME NULL,
+  payment_id      VARCHAR(36) NULL,
+  request_key     VARCHAR(80) NULL,
+  request_hash    CHAR(64) NULL,
+  order_month     CHAR(6) NULL,
+  monthly_number  INT UNSIGNED NULL,
+  UNIQUE KEY orders_monthly_number_unique (order_month, monthly_number),
+  UNIQUE KEY orders_request_key_unique (request_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
@@ -86,7 +131,19 @@ CREATE TABLE `tables` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
--- 6) ตารางผู้ใช้งานระบบ (users)
+-- 6) การตั้งค่าร้านที่ใช้ร่วมกันทุกบทบาท
+-- ----------------------------------------------------------------
+CREATE TABLE store_settings (
+  setting_key   VARCHAR(50) PRIMARY KEY,
+  setting_value TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO store_settings (setting_key, setting_value) VALUES
+('table_count', '8'),
+('payment_qr_url', '');
+
+-- ----------------------------------------------------------------
+-- 7) ตารางผู้ใช้งานระบบ (users)
 --    เพิ่ม phone, position (นอกเหนือดีไซน์เดิม) เพื่อรองรับหน้า "จัดการพนักงาน"
 --    ที่มี UI อยู่แล้ว (role = สิทธิ์การเข้าถึง, position = ตำแหน่งงาน)
 -- ----------------------------------------------------------------
@@ -97,18 +154,19 @@ CREATE TABLE users (
   display_name    VARCHAR(100),
   role            ENUM('admin','staff') DEFAULT 'staff',
   phone           VARCHAR(20) NULL,       -- ส่วนขยาย: เบอร์โทรศัพท์
-  position        VARCHAR(50) NULL        -- ส่วนขยาย: ตำแหน่งงาน เช่น แคชเชียร์, ครัว
+  position        VARCHAR(50) NULL,       -- ส่วนขยาย: ตำแหน่งงาน เช่น แคชเชียร์, ครัว
+  is_active       BOOLEAN NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ================================================================
 -- ข้อมูลตัวอย่าง (seed)
 -- ================================================================
 
-INSERT INTO menu_items (sku, name, type, category, price, image_url, is_available, options_config) VALUES
-('TEA001', 'ชาชัก (เย็น)', 'drink', 'Tea',   35.00, NULL, 1, JSON_OBJECT('sweetness', JSON_ARRAY('0%','50%','100%'))),
-('ROTI001','โรตีกรอบ',      'food',  'Roti',  25.00, NULL, 1, JSON_OBJECT('topping', JSON_ARRAY('นมข้น','ช็อกโกแลต'))),
-('SNK001', 'นักเก็ตไก่',     'food',  'Snack', 49.00, NULL, 1, NULL),
-('TEA002', 'ชามะนาว',       'drink', 'Tea',   40.00, NULL, 0, JSON_OBJECT('sweetness', JSON_ARRAY('0%','50%','100%')));
+INSERT INTO menu_items (sku, name, type, category, price, image_url, is_available) VALUES
+('TEA001', 'ชาชัก (เย็น)', 'drink', 'Tea',   35.00, NULL, 1),
+('ROTI001','โรตีกรอบ',      'food',  'Roti',  25.00, NULL, 1),
+('SNK001', 'นักเก็ตไก่',     'food',  'Snack', 49.00, NULL, 1),
+('TEA002', 'ชามะนาว',       'drink', 'Tea',   40.00, NULL, 0);
 
 INSERT INTO orders (table_number, total_price, status, payment_method, is_paid, created_at) VALUES
 ('T05', 60.00,  'cooking',   'qr_code', 0, '2024-01-15 19:42:00'),

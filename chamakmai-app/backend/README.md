@@ -1,94 +1,69 @@
-# ชาแมกไม้ — Backend API (ใช้ร่วมกันทุกบทบาท: ลูกค้า / ครัว / แคชเชียร์ / เจ้าของร้าน)
+# ชาแมกไม้ — Backend API
 
-REST API (Express + mysql2 + bcryptjs) ที่ implement ตามสคีมาในเอกสาร `Database_Design__SQL_.docx`
-(5 ตาราง: `menu_items`, `orders`, `order_items`, `tables`, `users`) เพิ่ม `sku` ใน `menu_items`
-และเพิ่ม `phone`/`position` ใน `users` เพื่อรองรับหน้าจัดการพนักงานที่มีอยู่แล้ว
+Express + mysql2 + bcryptjs ใช้ร่วมกับหน้าลูกค้า ครัว แคชเชียร์ และเจ้าของร้าน
 
-## ขั้นตอนติดตั้ง
+## ฐานข้อมูลและการเริ่มระบบ
 
-### 1) เปิด XAMPP แล้วสตาร์ท Apache + MySQL
+ตั้งค่าการเชื่อมต่อ MySQL ใน `backend/.env` ตาม `.env.example` แล้วรันจากโฟลเดอร์นี้:
 
-### 2) สร้างฐานข้อมูลด้วย schema.sql
-1. เปิด `http://localhost/phpmyadmin`
-2. แท็บ **Import** → เลือกไฟล์ `schema.sql` → กด **Go**
-   (ไฟล์นี้ import ซ้ำได้ปลอดภัย จะลบตารางเดิมแล้วสร้างใหม่ทุกครั้ง)
-
-### 3) ตั้งค่าการเชื่อมต่อฐานข้อมูล
-```bash
-cd backend
-cp .env.example .env
-```
-ค่าเริ่มต้นตรงกับ XAMPP มาตรฐาน (`root` / ไม่มีรหัสผ่าน / พอร์ต 3306)
-
-### 4) ติดตั้งแพ็กเกจและรัน
-```bash
+```powershell
 npm install
 npm start
 ```
-รันที่ `http://localhost:4000`
 
-### 5) สร้างผู้ใช้งานจริง
-Schema นี้ไม่มีผู้ใช้งานตัวอย่างสำหรับ login
-สามารถสร้างผู้ใช้งานใหม่ได้ผ่านหน้า "จัดการพนักงาน" ของ Owner หรือเรียก POST /api/staff
-ซึ่งจะ hash password ให้อัตโนมัติ หากต้องการ insert ด้วย SQL เอง ให้รัน:
-```bash
-npm run hash-password 3333
-```
-แล้วนำ hash ที่ได้ไปใช้กับ INSERT/UPDATE ในคอลัมน์ `users.password_hash`
+API เริ่มที่ `http://localhost:4000/api` (เปลี่ยนพอร์ตด้วย `PORT`) ฝั่ง frontend ใช้ `VITE_API_URL` หาก API อยู่ที่อื่น
 
-## โครงสร้างตาราง
+สำหรับฐานข้อมูลใหม่เท่านั้น ให้ import `schema.sql` ผ่าน phpMyAdmin ก่อนเริ่มระบบ **การ import ไฟล์นี้ซ้ำจะลบข้อมูลเดิมทั้งหมด** หากมีฐานข้อมูลเดิมอยู่แล้ว ให้เริ่ม backend ตามปกติ ระบบจะเพิ่มตารางตัวเลือก/การตั้งค่าและคอลัมน์ `paid_at`, `payment_id`, `request_key`, `request_hash`, `order_month`, `monthly_number`, `users.is_active` พร้อม backfill เลขออเดอร์รายเดือนให้ข้อมูลเดิม โดยไม่ล้างข้อมูล รวมถึงขยาย `store_settings.setting_value` ให้รองรับ URL รูป QR บัญชี MySQL ต้องมีสิทธิ์เพิ่มตาราง คอลัมน์ ดัชนี และแก้ชนิดคอลัมน์
 
-- **menu_items** — `menu_id` (PK), **`sku`**, `name`, `type` (food/drink), `category`, `price`, `image_url`, `is_available`, `options_config` (JSON)
-- **orders** — หัวบิล: `order_id` (PK), `table_number`, `total_price`, `status` (waiting/cooking/served/completed/cancelled), `payment_method`, `is_paid`, `created_at`
-- **order_items** — รายการย่อย: `order_item_id` (PK), `order_id` (FK), `menu_id` (FK), `item_name`, `price_at_order`, `quantity`, `selected_options` (JSON), `item_status`
-- **tables** — สถานะโต๊ะ: `table_id` (PK, เช่น T05), `status`, `current_order_id` (FK), `last_active`
-- **users** — พนักงาน: `user_id` (PK), `username`, `password_hash`, `display_name`, `role` (admin/staff), **`phone`**, **`position`** (2 คอลัมน์หลังเป็นส่วนขยาย)
+## บัญชีเจ้าของร้านและการเข้าสู่ระบบ
 
-## Endpoints
+ระบบไม่มีบัญชีหรือรหัสผ่านตัวอย่าง ตั้งค่าใน `backend/.env`:
 
-### เมนู
-| Method | Path                    | ใช้ที่หน้า | คำอธิบาย |
-|--------|-------------------------|-----------|----------|
-| GET    | `/api/menu`              | Customer, Owner | เมนูทั้งหมด (รวม sku) |
-| GET    | `/api/categories`        | Customer, Owner | หมวดหมู่ (คำนวณจากเมนูจริง) |
-| POST   | `/api/menu`               | Owner | เพิ่มเมนูใหม่ `{sku, name, type, category, price, imageUrl, optionsConfig}` |
-| PATCH  | `/api/menu/:id`           | Owner | เปิด/ปิดขาย `{isAvailable: true\|false}` |
-
-### ออเดอร์
-| Method | Path                       | ใช้ที่หน้า | คำอธิบาย |
-|--------|----------------------------|-----------|----------|
-| GET    | `/api/orders?table=T05`    | Customer, Cashier | ออเดอร์ของโต๊ะ (ไม่ใส่ `table` = ทั้งหมด ใช้โดย Kitchen/Cashier) |
-| POST   | `/api/orders`                | Customer | สร้างออเดอร์ `{table, items:[{menuId, sku, name, price, qty, options}]}` |
-| PATCH  | `/api/orders/:id/status`     | Kitchen | อัปเดตสถานะ `{status}` — waiting → cooking → served |
-
-### การชำระเงิน (ไม่มีตาราง payments แยก ใช้ orders.is_paid/payment_method)
-| Method | Path                       | ใช้ที่หน้า | คำอธิบาย |
-|--------|----------------------------|-----------|----------|
-| GET    | `/api/payments?table=T05`  | Customer | ประวัติออเดอร์ที่จ่ายแล้วของโต๊ะ (ไม่ใส่ table = ทั้งหมด ใช้โดย Owner dashboard) |
-| POST   | `/api/payments`              | Cashier | ปิดบิลออเดอร์ที่ค้างอยู่ทั้งหมดของโต๊ะ `{table, method}` ในครั้งเดียว แล้วเปิดโต๊ะว่างคืน |
-
-### พนักงาน
-| Method | Path            | ใช้ที่หน้า | คำอธิบาย |
-|--------|-----------------|-----------|----------|
-| GET    | `/api/staff`     | Owner | รายชื่อพนักงานทั้งหมด (ไม่ส่ง password กลับ) |
-| POST   | `/api/staff`     | Owner | เพิ่มพนักงานใหม่ `{username, password, displayName, role, phone, position}` — hash รหัสผ่านให้อัตโนมัติด้วย bcrypt |
-
-## Flow สถานะออเดอร์ (ตาม ENUM ใน orders.status)
-
-```
-waiting --(ครัวกดรับออเดอร์)--> cooking --(ครัวกดเสร็จสิ้น)--> served --(แคชเชียร์คิดเงิน)--> completed
-                                                                              └--(ยกเลิก)--> cancelled
+```dotenv
+INITIAL_ADMIN_USERNAME=ชื่อผู้ใช้งานที่ต้องการ
+INITIAL_ADMIN_PASSWORD=รหัสผ่านความยาว8ถึง72ตัวอักษร
+INITIAL_ADMIN_NAME=ชื่อเจ้าของร้าน
 ```
 
-- **Kitchen** เปลี่ยนสถานะได้แค่ waiting→cooking→served (ผ่าน `PATCH /api/orders/:id/status`)
-- **Cashier** ไม่ได้แก้ทีละออเดอร์ แต่ปิดบิล "ทั้งโต๊ะ" ผ่าน `POST /api/payments` ซึ่งจะตั้ง
-  ทุกออเดอร์ที่ยังไม่จ่ายของโต๊ะนั้นเป็น `completed` + `is_paid=1` พร้อมกัน (เหมือน flow เดิม
-  ที่คิดเงินรวมทั้งบิลของโต๊ะ ไม่ใช่ทีละออเดอร์)
+จากนั้นรัน `npm run create-admin` หนึ่งครั้ง สคริปต์จะไม่สร้างเพิ่มหากมีบัญชี admin ที่เปิดใช้งานอยู่แล้ว เมื่อตั้งบัญชีสำเร็จ ให้ลบค่า `INITIAL_ADMIN_PASSWORD` ออกจาก `.env` และจัดการพนักงานผ่านหน้าเจ้าของร้าน
 
-## หมายเหตุ
+ตั้งค่า `AUTH_SECRET` เป็นค่าสุ่มยาวเพื่อใช้ตรวจลายเซ็น session เช่นสร้างด้วย:
 
-- สำหรับ login จริง ให้สร้างผู้ใช้งานผ่าน backend หรือ insert bcrypt hash ลงฐานข้อมูลให้เรียบร้อย
-- Owner dashboard ยังใช้ตัวคูณโดยประมาณ (mock multiplier) สำหรับมุมมอง "สัปดาห์นี้/เดือนนี้"
-  เพราะฐานข้อมูลตัวอย่างยังไม่มีข้อมูลย้อนหลังจริง — ถ้าต้องการ query ตามช่วงวันที่จริง
-  สามารถเพิ่มพารามิเตอร์ `?from=&to=` ใน `/api/payments` ได้ในอนาคต
-- เปิด CORS ให้ทุก origin ไว้เพื่อความสะดวกตอนพัฒนา ก่อน production ควรจำกัด origin
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Session มีอายุ 8 ชั่วโมง จัดเก็บใน sessionStorage ของแท็บที่เข้าสู่ระบบ หากไม่ได้ตั้ง `AUTH_SECRET` ระบบจะใช้ค่าสุ่มชั่วคราวและ session เดิมจะใช้ไม่ได้หลังรีสตาร์ท backend การปิดบัญชี เปลี่ยนรหัสผ่าน หรือเปลี่ยนสิทธิ์มีผลที่ API ในคำขอถัดไป
+
+## สิทธิ์ API
+
+คำขอหลังร้านต้องแนบ `Authorization: Bearer <token>` ที่ได้จาก `POST /api/login`
+
+| ผู้ใช้ | การใช้งาน |
+| --- | --- |
+| ลูกค้า | อ่านเมนู/หมวด/จำนวนโต๊ะ, อ่านออเดอร์และการชำระเงินโดยระบุ `?table=T05`, สั่งอาหาร, ยืนยันรับอาหารของโต๊ะเดียวกัน |
+| ครัว | อ่านออเดอร์ทุกโต๊ะ, รับออเดอร์, ทำอาหารเสร็จ, ยกเลิกรายการที่ยังรอและยังไม่จ่าย |
+| แคชเชียร์ | อ่านออเดอร์และประวัติชำระเงิน, คิดเงิน, ปรับจำนวนโต๊ะ |
+| เจ้าของร้าน | ใช้งานทุกส่วน, จัดการเมนู/หมวด/ตัวเลือกและพนักงาน |
+
+`GET /api/auth/me` ตรวจบัญชีปัจจุบัน และ `GET /api/health` ตรวจการเชื่อมต่อฐานข้อมูล
+
+## ออเดอร์และการชำระเงิน
+
+- `POST /api/orders` รับ `{table, items, requestId}` ราคา ชื่อ ตัวเลือก และการเปิดขายถูกตรวจจากฐานข้อมูล การส่งข้อมูลเดิมด้วย requestId เดิมจะคืนออเดอร์ที่บันทึกไว้แล้ว
+- ครัวเปลี่ยน `waiting → cooking → served` อาหารแต่ละรายการต้องทำเสร็จก่อนปิดออเดอร์ รายการที่ลูกค้ายืนยันรับแล้วจะไม่ถูกย้อนสถานะ
+- จ่ายเงินก่อนอาหารเสร็จได้: ตั้ง `is_paid=1` แต่ยังเก็บสถานะ waiting/cooking ในคิวครัว เมื่อครัวทำเสร็จจึงเป็น completed
+- `POST /api/payments` รับ `{table, method}` เงินสดแนบ `{orderIds, expectedAmount}` จากบิลที่กำลังตรวจสอบด้วย หากรายการหรือยอดเปลี่ยน จะปฏิเสธเพื่อให้โหลดบิลใหม่
+- การชำระเงินครั้งเดียวมี `paymentId` ร่วมกันทุกออเดอร์ในบิล และบันทึก `paidAt` จริง `GET /api/payments` ยังคืนรายออเดอร์เพื่อรองรับหน้าลูกค้า หน้ารายงาน/ใบเสร็จรวมตาม paymentId
+- รายการยกเลิกไม่นับยอดเงิน โต๊ะที่ยังมีบิลค้างหรืออาหารรอทำถือว่ายังใช้งานอยู่และลดจำนวนโต๊ะผ่านโต๊ะนั้นไม่ได้
+- ประวัติเก่าที่ไม่มี paidAt/paymentId ใช้วันที่สร้างออเดอร์และแสดงแยกตามออเดอร์ เพราะไม่มีข้อมูลเวลาจ่ายจริงย้อนหลัง
+
+การอัปโหลดรูปเมนูและ QR รับชำระเงินต้องตั้งค่า Cloudinary ใน `.env` เจ้าของร้านจัดการรูป QR ได้จากแท็บ **QR ชำระเงิน** ส่วนแคชเชียร์อ่านรูปปัจจุบันจากการตั้งค่าร้าน
+
+## การตรวจสอบ
+
+```powershell
+npm test
+```
+
+ทดสอบ HTTP API ด้วยฐานข้อมูลจำลองในหน่วยความจำ ครอบคลุมสิทธิ์ session, ยอดเงิน, คิวครัวหลังจ่ายเงิน, การยกเลิก/รับอาหาร, ราคา/เมนูหมด, การส่งซ้ำ และการลดจำนวนโต๊ะ ไม่รัน migration และไม่เชื่อมต่อฐานข้อมูลร้านจริง

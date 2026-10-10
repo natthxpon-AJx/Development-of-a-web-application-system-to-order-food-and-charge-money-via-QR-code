@@ -6,6 +6,7 @@ export default function CustomerMenuTab({
   money,
   catEmoji,
   categories,
+  submitting,
   onSearch,
   onSetCat,
   onOpenItem,
@@ -16,6 +17,7 @@ export default function CustomerMenuTab({
         <span>🔍</span>
         <input
           type="text"
+          aria-label="ค้นหาเมนู"
           onChange={(e) => onSearch(e.target.value)}
           value={customer.search}
           placeholder="ค้นหาเมนู..."
@@ -41,15 +43,13 @@ export default function CustomerMenuTab({
             return (
               <div key={it.id} className={`menu-item ${!isAvailable ? "soldout" : ""}`}>
                 <div className="mi-left">
-                  {it.image ? (
-                    <img src={it.image} alt={it.name} style={{ width: 46, height: 46, objectFit: "cover", borderRadius: 10, marginRight: 12 }} />
-                  ) : (
-                    <div className="mi-thumb">{catEmoji[it.category] || catEmoji[customer.category] || "🍽️"}</div>
-                  )}
+                  <div className="mi-thumb" aria-hidden="true">
+                    <span>{catEmoji[it.category] || catEmoji[customer.category] || "🍽️"}</span>
+                    {it.image ? <img src={it.image} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
+                  </div>
                   <div>
                     <div className="mi-name">{it.name}</div>
-                    {it.sku ? <div className="mi-sku">SKU: {it.sku}</div> : null}
-                    <div className="mi-price">{money(it.price)}</div>
+                    {/*it.sku ? <div className="mi-sku">SKU: {it.sku}</div> : null*/}
                     {!isAvailable ? (
                       <div style={{ fontSize: 11, color: "var(--clay)", fontWeight: 700, marginTop: 2 }}>
                         หมดชั่วคราว
@@ -57,9 +57,12 @@ export default function CustomerMenuTab({
                     ) : null}
                   </div>
                 </div>
-                <button type="button" className="add-mini" disabled={!isAvailable} onClick={() => onOpenItem(it.id)}>
-                  +
-                </button>
+                <div className="mi-right">
+                  <div className="mi-price">{money(it.price)}</div>
+                  <button type="button" className="add-mini" aria-label={`เลือก ${it.name}`} disabled={!isAvailable || submitting} onClick={() => onOpenItem(it.id)}>
+                    +
+                  </button>
+                </div>
               </div>
             );
           })

@@ -1,5 +1,7 @@
 import mysql from "mysql2/promise";
-import "dotenv/config";
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+dotenv.config({ path: fileURLToPath(new URL(".env", import.meta.url)), quiet: true });
 
 // ค่าเริ่มต้นตรงกับการตั้งค่า XAMPP มาตรฐาน (MySQL ที่พอร์ต 3306, user root, ไม่มีรหัสผ่าน)
 // ถ้าตั้งรหัสผ่านหรือพอร์ตไว้ต่างจากนี้ ให้แก้ในไฟล์ .env แทน
@@ -9,6 +11,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "chamakmai",
+  timezone: "+07:00",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

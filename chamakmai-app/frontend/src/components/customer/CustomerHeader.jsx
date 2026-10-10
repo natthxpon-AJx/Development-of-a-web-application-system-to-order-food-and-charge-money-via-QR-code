@@ -18,13 +18,6 @@ export default function CustomerHeader({ tab, table, cartCount, onSetTab }) {
           >
             🧺 ตะกร้า{cartCount ? ` (${cartCount})` : ""}
           </button>
-          <button
-            type="button"
-            className={`header-action ${tab === "history" ? "active" : ""}`}
-            onClick={() => onSetTab("history")}
-          >
-            📜 ประวัติ
-          </button>
         </div>
       </div>
     </div>

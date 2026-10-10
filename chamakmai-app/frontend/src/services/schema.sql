@@ -23,8 +23,36 @@ CREATE TABLE IF NOT EXISTS menu_items (
   category        VARCHAR(50),
   price           DECIMAL(10,2) NOT NULL,
   image_url       TEXT,
-  is_available    BOOLEAN DEFAULT 1,
-  options_config  JSON NULL                                -- เช่น {"sweetness":["0%","50%","100%"]}
+  is_available    BOOLEAN DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS option_groups (
+  option_group_id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  is_required BOOLEAN NOT NULL DEFAULT 0,
+  max_selections INT NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS option_items (
+  option_item_id INT PRIMARY KEY AUTO_INCREMENT,
+  option_group_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  price_delta DECIMAL(10,2) NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT 1,
+  FOREIGN KEY (option_group_id) REFERENCES option_groups(option_group_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS menu_option_groups (
+  menu_id INT NOT NULL,
+  option_group_id INT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (menu_id, option_group_id),
+  FOREIGN KEY (menu_id) REFERENCES menu_items(menu_id) ON DELETE CASCADE,
+  FOREIGN KEY (option_group_id) REFERENCES option_groups(option_group_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
@@ -82,11 +110,11 @@ CREATE TABLE IF NOT EXISTS users (
 -- ข้อมูลตัวอย่าง (seed)
 -- ================================================================
 
-INSERT INTO menu_items (sku, name, type, category, price, image_url, is_available, options_config) VALUES
-('TEA001', 'ชาชัก (เย็น)', 'drink', 'Tea',   35.00, NULL, 1, JSON_OBJECT('sweetness', JSON_ARRAY('0%','50%','100%'))),
-('ROTI001','โรตีกรอบ',      'food',  'Roti',  25.00, NULL, 1, JSON_OBJECT('topping', JSON_ARRAY('นมข้น','ช็อกโกแลต'))),
-('SNK001', 'นักเก็ตไก่',     'food',  'Snack', 49.00, NULL, 1, NULL),
-('TEA002', 'ชามะนาว',       'drink', 'Tea',   40.00, NULL, 0, JSON_OBJECT('sweetness', JSON_ARRAY('0%','50%','100%')));
+INSERT INTO menu_items (sku, name, type, category, price, image_url, is_available) VALUES
+('TEA001', 'ชาชัก (เย็น)', 'drink', 'Tea',   35.00, NULL, 1),
+('ROTI001','โรตีกรอบ',      'food',  'Roti',  25.00, NULL, 1),
+('SNK001', 'นักเก็ตไก่',     'food',  'Snack', 49.00, NULL, 1),
+('TEA002', 'ชามะนาว',       'drink', 'Tea',   40.00, NULL, 0);
 
 INSERT INTO orders (table_number, total_price, status, payment_method, is_paid, created_at) VALUES
 ('T05', 60.00,  'cooking',   'qr_code', 0, '2024-01-15 19:42:00'),
