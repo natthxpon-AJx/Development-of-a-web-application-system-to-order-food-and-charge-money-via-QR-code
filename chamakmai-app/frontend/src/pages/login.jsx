@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { checkConnection, loginUser } from "../services/api";
 
+// หน้าเข้าสู่ระบบพนักงาน พร้อมตรวจการเชื่อมต่อและนำผู้ใช้ไปหน้าตามสิทธิ์
 const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
@@ -106,7 +107,7 @@ const styles = `
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--brown-900);color:#fff;padding:12px 22px;border-radius:30px;font-size:13.5px;font-weight:600;box-shadow:0 10px 25px -10px rgba(0,0,0,0.4);z-index:200;}
 `;
 
-// กำหนดว่า login สำเร็จแล้วควรพาไปหน้าไหน โดยดูจาก role (สิทธิ์) และ position (ตำแหน่งงาน)
+// เลือกหน้าแรกหลังเข้าสู่ระบบจาก role (สิทธิ์) และ position (ตำแหน่งงาน)
 // role='admin' ถือเป็นเจ้าของร้านเสมอ ส่วน staff ให้ดูจาก position
 function resolveRoute(user) {
   if (user.role === "admin") return "/owner";
@@ -117,6 +118,7 @@ function resolveRoute(user) {
 }
 
 export default function Login() {
+  // สถานะฟอร์ม การเชื่อมต่อ API และตัวอ้างอิง input ป้องกันการส่งซ้ำ
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -128,6 +130,7 @@ export default function Login() {
   const usernameRef = useRef(null);
   const passwordRef = useRef(null);
 
+  // ตรวจสถานะ backend เป็นระยะ เพื่อแสดงข้อความการเชื่อมต่อในหัวหน้าเว็บ
   useEffect(() => {
     let cancelled = false;
     const check = () => checkConnection().then(() => { if (!cancelled) setConnection("online"); }).catch(() => { if (!cancelled) setConnection("offline"); });
@@ -136,6 +139,7 @@ export default function Login() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  // ตั้งชื่อแท็บ โหลดฟอนต์ และล้างตัวจับเวลาแจ้งเตือนเมื่อออกจากหน้า
   useEffect(() => {
     // load fonts (preserve original UI)
     const id = 'cm-google-fonts';
@@ -158,6 +162,7 @@ export default function Login() {
     toastTimer.current = setTimeout(() => setToast(null), 2000);
   }
 
+  // ส่งชื่อผู้ใช้และรหัสผ่านไปตรวจสอบ แล้วนำทางตามตำแหน่งงาน
   async function handleFormSubmit(e) {
     e.preventDefault();
     if (submittingRef.current) return;
@@ -181,6 +186,7 @@ export default function Login() {
     }
   }
 
+  // หน้าฟอร์มเข้าสู่ระบบ รวมสถานะเชื่อมต่อ แสดง/ซ่อนรหัสผ่าน และข้อผิดพลาด
   return (
     <div id="app">
       <style dangerouslySetInnerHTML={{ __html: styles }} />

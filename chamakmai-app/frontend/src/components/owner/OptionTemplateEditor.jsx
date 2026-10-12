@@ -3,7 +3,16 @@ import { createOptionGroup, deleteOptionGroup, updateOptionGroup } from "../../s
 
 const emptyItem = () => ({ name: "", priceDelta: "0" });
 
-export default function OptionTemplateEditor({ optionGroups, selectedIds, onSelectedIdsChange, onGroupsChange, onError, disabled = false, onBusyChange }) {
+// ตัวแก้ไขกลุ่มตัวเลือกที่ใช้ร่วมกับแบบฟอร์มเมนูของเจ้าของร้าน
+export default function OptionTemplateEditor({
+  optionGroups,
+  selectedIds,
+  onSelectedIdsChange,
+  onGroupsChange,
+  onError,
+  disabled = false,
+  onBusyChange,
+}) {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -63,15 +72,35 @@ export default function OptionTemplateEditor({ optionGroups, selectedIds, onSele
 
   async function saveDraft() {
     if (!draft || busyRef.current || disabled) return;
-    if (!draft.name.trim()) { reportError("กรุณากรอกชื่อกลุ่มตัวเลือก"); return; }
-    if (!draft.items.length || draft.items.some((item) => !item.name.trim())) { reportError("กรุณากรอกชื่อตัวเลือกย่อยให้ครบอย่างน้อย 1 รายการ"); return; }
-    if (draft.items.some((item) => item.priceDelta === "" || !Number.isFinite(Number(item.priceDelta)))) { reportError("กรุณากรอกราคาเพิ่มเป็นตัวเลขให้ครบ"); return; }
+    if (!draft.name.trim()) {
+      reportError("กรุณากรอกชื่อกลุ่มตัวเลือก");
+      return;
+    }
+    if (!draft.items.length || draft.items.some((item) => !item.name.trim())) {
+      reportError("กรุณากรอกชื่อตัวเลือกย่อยให้ครบอย่างน้อย 1 รายการ");
+      return;
+    }
+    if (draft.items.some((item) => item.priceDelta === "" || !Number.isFinite(Number(item.priceDelta)))) {
+      reportError("กรุณากรอกราคาเพิ่มเป็นตัวเลขให้ครบ");
+      return;
+    }
+
     const itemNames = draft.items.map((item) => item.name.trim().toLocaleLowerCase("th-TH"));
-    if (new Set(itemNames).size !== itemNames.length) { reportError("ชื่อตัวเลือกย่อยในกลุ่มต้องไม่ซ้ำกัน"); return; }
+    if (new Set(itemNames).size !== itemNames.length) {
+      reportError("ชื่อตัวเลือกย่อยในกลุ่มต้องไม่ซ้ำกัน");
+      return;
+    }
+
     const maximum = Number(draft.maxSelections);
-    if (!Number.isInteger(maximum) || maximum < 1 || maximum > draft.items.length) { reportError("จำนวนที่เลือกได้ต้องเป็นจำนวนเต็มตั้งแต่ 1 ถึงจำนวนตัวเลือกย่อย"); return; }
-    const items = draft.items
-      .map((item) => ({ name: item.name.trim(), priceDelta: Number(item.priceDelta) }));
+    if (!Number.isInteger(maximum) || maximum < 1 || maximum > draft.items.length) {
+      reportError("จำนวนที่เลือกได้ต้องเป็นจำนวนเต็มตั้งแต่ 1 ถึงจำนวนตัวเลือกย่อย");
+      return;
+    }
+
+    const items = draft.items.map((item) => ({
+      name: item.name.trim(),
+      priceDelta: Number(item.priceDelta),
+    }));
     if (!beginSaving()) return;
     try {
       const payload = {
@@ -80,6 +109,7 @@ export default function OptionTemplateEditor({ optionGroups, selectedIds, onSele
         maxSelections: maximum,
         items,
       };
+      // สร้างหรืออัปเดตกลุ่มตัวเลือกใน Backend แล้วส่งข้อมูลที่บันทึกแล้วกลับให้หน้า Owner
       const saved = draft.id ? await updateOptionGroup(draft.id, payload) : await createOptionGroup(payload);
       onGroupsChange((current) => (draft.id ? current.map((group) => (group.id === saved.id ? saved : group)) : [...current, saved]));
       setDraft(null);
@@ -93,8 +123,10 @@ export default function OptionTemplateEditor({ optionGroups, selectedIds, onSele
   async function removeGroup(group) {
     if (busyRef.current || disabled) return;
     if (!window.confirm(`ลบกลุ่มตัวเลือก "${group.name}" หรือไม่?`)) return;
+
     if (!beginSaving()) return;
     try {
+      // ลบกลุ่มตัวเลือกใน Backend ก่อนเอาออกจากตัวเลือกและรายการบนหน้า Owner
       await deleteOptionGroup(group.id);
       onGroupsChange((current) => current.filter((item) => item.id !== group.id));
       onSelectedIdsChange(selectedIds.filter((id) => id !== group.id));
@@ -108,7 +140,11 @@ export default function OptionTemplateEditor({ optionGroups, selectedIds, onSele
 
   function toggleSelected(id) {
     if (busyRef.current || disabled) return;
-    onSelectedIdsChange(selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id]);
+    onSelectedIdsChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((item) => item !== id)
+        : [...selectedIds, id]
+    );
   }
 
   return (

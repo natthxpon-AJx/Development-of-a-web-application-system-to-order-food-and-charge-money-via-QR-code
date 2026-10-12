@@ -1,5 +1,6 @@
 import React from "react";
 
+// เนื้อหาแท็บเมนู: ช่องค้นหา หมวดหมู่ และรายการเมนูที่เลือกเพิ่มลงตะกร้าได้
 export default function CustomerMenuTab({
   customer,
   filteredItems,

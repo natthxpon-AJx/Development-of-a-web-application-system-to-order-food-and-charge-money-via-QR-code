@@ -1,6 +1,12 @@
 import React, { useEffect, useRef } from "react";
 
-export default function CustomerModalFrame({ titleId, onClose, sheet = false, children }) {
+// กรอบ dialog ที่ใช้ร่วมกัน: ปิดด้วยฉากหลัง/Escape และควบคุมโฟกัสสำหรับคีย์บอร์ด
+export default function CustomerModalFrame({
+  titleId,
+  onClose,
+  sheet = false,
+  children,
+}) {
   const dialogRef = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -8,13 +14,17 @@ export default function CustomerModalFrame({ titleId, onClose, sheet = false, ch
   useEffect(() => {
     const previousFocus = document.activeElement;
     const dialog = dialogRef.current;
-    const getFocusable = () => Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex="0"]'));
+    const getFocusable = () => Array.from(
+      dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex="0"]')
+    );
     (getFocusable()[0] || dialog).focus();
+
     function onKeyDown(event) {
       if (event.key === "Escape") {
         event.preventDefault();
         closeRef.current();
       }
+
       if (event.key !== "Tab") return;
       const focusable = getFocusable();
       if (!focusable.length) {
@@ -24,6 +34,7 @@ export default function CustomerModalFrame({ titleId, onClose, sheet = false, ch
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+
       if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
         event.preventDefault();
         last.focus();
@@ -40,10 +51,20 @@ export default function CustomerModalFrame({ titleId, onClose, sheet = false, ch
   }, []);
 
   return (
-    <div className={`customer-modal-backdrop ${sheet ? "sheet" : ""}`} onClick={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={sheet ? "customer-detail-sheet" : "ready-popup"}>
+    <div
+      className={`customer-modal-backdrop ${sheet ? "sheet" : ""}`}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={sheet ? "customer-detail-sheet" : "ready-popup"}
+      >
         {children}
       </section>
     </div>

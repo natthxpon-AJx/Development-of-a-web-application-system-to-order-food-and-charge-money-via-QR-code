@@ -1,6 +1,7 @@
 import React from "react";
 import CustomerModalFrame from "./CustomerModalFrame";
 
+// หน้าต่างรายละเอียดเมนู: เลือกตัวเลือกเสริม ปรับจำนวน และยืนยันลงตะกร้า
 export default function CustomerDetailModal({ detailItem, customer, money, onClose, onSetOpt, onQty, onAddToCart }) {
   if (!detailItem) return null;
   const groups = detailItem.optionGroups || [];

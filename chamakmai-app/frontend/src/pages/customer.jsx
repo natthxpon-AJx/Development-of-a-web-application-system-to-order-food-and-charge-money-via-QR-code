@@ -9,6 +9,7 @@ import CustomerDetailModal from "../components/customer/CustomerDetailModal";
 import CustomerModalFrame from "../components/customer/CustomerModalFrame";
 import { fetchMenu, fetchCategories, fetchOrders, fetchTableCount, createOrder, updateOrderItemStatus } from "../services/api";
 
+// หน้าลูกค้าแสดงเมนู ตะกร้า และสถานะอาหารของโต๊ะที่ระบุใน URL
 const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
@@ -179,6 +180,7 @@ function money(n) {
   return "฿" + n.toLocaleString("th-TH", { minimumFractionDigits: n % 1 ? 2 : 0 });
 }
 
+// ตัวช่วยเตรียมรหัสโต๊ะ ตะกร้าค้าง และตรวจสอบราคากับตัวเลือกก่อนส่งออเดอร์
 // แปลงเลขโต๊ะ (5) ให้เป็นรหัสโต๊ะตามสคีมา (T05) ที่ตาราง tables/orders ใช้
 function tableCode(tableNumber) {
   return "T" + String(tableNumber).padStart(2, "0");
@@ -243,6 +245,7 @@ function optsForCartItem(menu, cartItem) {
 }
 
 export default function Customer() {
+  // สถานะหลักของหน้า ได้แก่ โต๊ะ เมนู ตะกร้า ออเดอร์ และการส่งคำขอไปหลังบ้าน
   const { tableNumber } = useParams();
   const parsedTable = Number(tableNumber);
   const validTable = /^[1-9]\d*$/.test(tableNumber || "") && Number.isSafeInteger(parsedTable);
@@ -279,6 +282,7 @@ export default function Customer() {
   const confirmingReadyRef = useRef(false);
   const toastTimer = useRef(null);
 
+  // เปลี่ยนโต๊ะแล้วเริ่มตะกร้าและสถานะออเดอร์ใหม่ โดยโหลด draft ของโต๊ะนั้นกลับมา
   useEffect(() => {
     const draft = validTable ? readDraft(parsedTable) : { cart: [], requestId: null };
     submissionIdRef.current = draft.requestId;
@@ -291,6 +295,7 @@ export default function Customer() {
     setSubmitError(null);
   }, [parsedTable, validTable]);
 
+  // บันทึกตะกร้าไว้ใน browser เพื่อไม่ให้หายเมื่อรีเฟรชหน้า
   useEffect(() => {
     if (!validTable || customer.table !== parsedTable) return;
     try {
@@ -299,11 +304,13 @@ export default function Customer() {
     } catch { /* Ordering remains usable when browser storage is unavailable. */ }
   }, [customer.cart, customer.table, parsedTable, validTable]);
 
+  // ตรวจว่าเลขโต๊ะใน URL ยังอยู่ในช่วงโต๊ะที่ร้านเปิดใช้งานหรือไม่
   useEffect(() => {
     if (!validTable) return;
     let cancelled = false;
     setTableAccess("checking");
     setTableError(null);
+    // ขอจำนวนโต๊ะจาก Backend เพื่อป้องกันการสั่งอาหารด้วยเลขโต๊ะที่ร้านไม่ได้เปิดใช้งาน
     fetchTableCount().then(({ count }) => {
       if (!cancelled) setTableAccess(parsedTable <= Number(count) ? "allowed" : "denied");
     }).catch((error) => {
@@ -312,6 +319,7 @@ export default function Customer() {
     return () => { cancelled = true; };
   }, [parsedTable, validTable, tableRetry]);
 
+  // ตั้งชื่อแท็บและโหลดฟอนต์ที่ใช้กับหน้าลูกค้า
   useEffect(() => {
     document.title = "ร้านชาแมกไม้ — ลูกค้า";
     if (!document.getElementById("cm-google-fonts")) {
@@ -330,12 +338,14 @@ export default function Customer() {
     toastTimer.current = window.setTimeout(() => setToast(null), duration);
   }
 
+  // โหลดเมนูและหมวดหมู่ พร้อมรีเฟรชเมื่อกลับมาที่แท็บหรือหน้าต่าง
   useEffect(() => {
     let cancelled = false;
     let loading = false;
     async function loadMenu() {
       if (loading) return;
       loading = true;
+      // โหลดเมนูและหมวดหมู่จาก Backend พร้อมกัน เพื่อแสดงรายการขายล่าสุดแก่ลูกค้า
       const [menuResult, categoryResult] = await Promise.allSettled([fetchMenu(), fetchCategories()]);
       if (!cancelled) {
         if (menuResult.status === "fulfilled") {
@@ -381,6 +391,7 @@ export default function Customer() {
     setReadyItems((previous) => previous.some((ready) => String(ready.id) === String(item.id)) ? previous : [...previous, item]);
   }
 
+  // ติดตามสถานะอาหารของโต๊ะและแจ้งเตือนเมื่อรายการพร้อมรับ
   useEffect(() => {
     if (!validTable || tableAccess !== "allowed" || customer.table !== parsedTable) return;
     let cancelled = false;
@@ -392,6 +403,7 @@ export default function Customer() {
       loading = true;
       const revision = ordersRevisionRef.current;
       try {
+        // ดึงออเดอร์ของโต๊ะนี้จาก Backend เพื่ออัปเดตสถานะและแจ้งเมื่ออาหารพร้อมรับ
         const fresh = await fetchOrders(tableCode(parsedTable));
         if (cancelled || revision !== ordersRevisionRef.current) return;
         fresh.forEach((order) => {
@@ -430,6 +442,7 @@ export default function Customer() {
   }, [parsedTable, customer.table, tableAccess, validTable]);
 
   function findMenuItem(id) { return menuData.find((item) => String(item.id) === String(id)) || null; }
+  // คำนวณข้อมูลสำหรับแสดงผลเมนู ตะกร้า และสถานะที่กำลังดำเนินการ
   const filteredItems = useMemo(() => menuData.filter((item) =>
     (customer.category === "ทั้งหมด" || item.category === customer.category) && item.name.toLowerCase().includes(customer.search.trim().toLowerCase())
   ), [menuData, customer.category, customer.search]);
@@ -449,6 +462,7 @@ export default function Customer() {
     contentRef.current?.scrollTo({ top: 0 });
   }
   function clearSubmissionIntent() { submissionIdRef.current = null; setSubmitError(null); }
+  // จัดการการเลือกเมนู ตัวเลือก จำนวนสินค้า และรายการในตะกร้า
   function custOpenItem(id, editCartIndex = null) {
     if (orderSubmittingRef.current) return;
     const item = findMenuItem(id);
@@ -491,6 +505,7 @@ export default function Customer() {
     setCustomer((previous) => ({ ...previous, cart: previous.cart.map((item, position) => position === index ? { ...item, qty: Math.min(99, Math.max(1, item.qty + delta)) } : item) }));
   }
 
+  // ให้ลูกค้ายืนยันรับอาหารที่ครัวทำเสร็จแล้ว
   async function confirmReadyItem(item) {
     if (confirmingReadyRef.current) return;
     const ids = [...new Set((item?.ids?.length ? item.ids : item?.id != null ? [item.id] : []).map(String))];
@@ -503,6 +518,7 @@ export default function Customer() {
       const results = [];
       for (const id of ids) {
         try {
+          // แจ้ง Backend ว่าลูกค้ารับรายการอาหารนี้แล้ว โดยส่งเลขโต๊ะประกอบการตรวจสอบ
           await updateOrderItemStatus(id, "received", tableCode(receivingTable));
           results.push({ status: "fulfilled" });
         } catch (reason) {
@@ -523,6 +539,7 @@ export default function Customer() {
     }
   }
 
+  // ตรวจราคา/ตัวเลือกซ้ำจาก API ล่าสุด แล้วส่งออเดอร์เข้าครัว
   async function custConfirmOrder() {
     if (!customer.cart.length || orderSubmittingRef.current || tableAccess !== "allowed") return;
     orderSubmittingRef.current = true;
@@ -532,6 +549,7 @@ export default function Customer() {
     try {
       // Keep the same intent on an uncertain retry: the server may already have saved it.
       if (!submissionIdRef.current) {
+        // อ่านเมนูราคาล่าสุดจาก Backend ก่อนส่ง เพื่อไม่ยืนยันรายการที่ราคา/ตัวเลือกเปลี่ยนไปแล้ว
         const latestMenu = await fetchMenu();
         if (activeTableRef.current !== submittingTable) return;
         setMenuData(latestMenu); setMenuError(null);
@@ -549,6 +567,7 @@ export default function Customer() {
         submissionIdRef.current = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         try { localStorage.setItem(draftKey(customer.table), JSON.stringify({ cart: customer.cart, requestId: submissionIdRef.current })); } catch { /* Storage is optional. */ }
       }
+      // ส่งรายการที่ยืนยันแล้วไป Backend เพื่อสร้างออเดอร์เข้าคิวครัว พร้อมรหัสกันการส่งซ้ำ
       const created = await createOrder(tableCode(customer.table), customer.cart.map(({ menuId, sku, name, price, qty, options }) => ({ menuId, sku, name, price, qty, options })), submissionIdRef.current);
       try { localStorage.removeItem(draftKey(submittingTable)); } catch { /* Storage is optional. */ }
       if (activeTableRef.current !== submittingTable) return;
@@ -564,6 +583,7 @@ export default function Customer() {
       // A refresh failure must never reverse the successful submission or restore the cart.
       try {
         const revision = ordersRevisionRef.current;
+        // โหลดสถานะหลังสร้างออเดอร์สำเร็จ; ความผิดพลาดตรงนี้ไม่ยกเลิกออเดอร์ที่บันทึกแล้ว
         const fresh = await fetchOrders(tableCode(customer.table));
         if (activeTableRef.current === submittingTable && revision === ordersRevisionRef.current) {
           setOrders(fresh); setOrdersUpdatedAt(new Date());
@@ -585,6 +605,7 @@ export default function Customer() {
     }
   }
 
+  // เนื้อหาหลักของแต่ละแท็บ: เมนู ตะกร้า สถานะ และประวัติการสั่งซื้อ
   function renderTabContent() {
     if (customer.tab === "menu") return (
       <>
@@ -594,6 +615,7 @@ export default function Customer() {
       </>
     );
     if (customer.tab === "cart") return <CustomerCartTab customer={customer} cartTotal={cartTotal} cartIssues={cartIssues} pendingRequest={Boolean(submissionIdRef.current)} submitError={submitError} money={money} submitting={submitting} onSetTab={custSetTab} onRemoveCart={custRemoveCart} onEditCart={(index) => custOpenItem(customer.cart[index].menuId, index)} onCartQty={custCartQty} onConfirmOrder={custConfirmOrder} />;
+    // แสดงสถานะออเดอร์สด พร้อมปุ่มยืนยันรับอาหารเมื่อรายการพร้อม
     return (
       <>
         <div className="data-freshness"><span>{ordersUpdatedAt ? `อัปเดต ${ordersUpdatedAt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ordersError ? "ยังโหลดข้อมูลออเดอร์ไม่ได้" : "กำลังโหลดข้อมูลออเดอร์"}</span><button type="button" className="text-button" onClick={() => ordersRefreshRef.current?.()}>อัปเดต</button></div>
@@ -611,6 +633,7 @@ export default function Customer() {
   }
 
   const accessMessage = !validTable ? "กรุณาสแกน QR Code ที่วางอยู่บนโต๊ะของคุณ เพื่อเข้าสู่เมนูของร้าน" : tableAccess === "checking" ? "กำลังตรวจสอบโต๊ะ..." : tableAccess === "error" ? "ติดต่อร้านไม่สำเร็จ" : "โต๊ะนี้ยังไม่เปิดให้บริการ";
+  // เปลือกหน้าจอมือถือ พร้อมแถบหัว แท็บเนื้อหา แถบนำทาง และแจ้งเตือนอาหารพร้อม
   return (
     <div id="app">
       <style dangerouslySetInnerHTML={{ __html: styles }} />

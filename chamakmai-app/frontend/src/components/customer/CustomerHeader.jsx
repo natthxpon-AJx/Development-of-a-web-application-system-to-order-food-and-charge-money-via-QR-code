@@ -1,7 +1,13 @@
 import React from "react";
 
+// แถบหัวหน้าลูกค้า แสดงชื่อแท็บ โต๊ะปัจจุบัน และทางลัดไปยังตะกร้า
 export default function CustomerHeader({ tab, table, cartCount, onSetTab }) {
-  const titles = { menu: "ร้านชาแมกไม้", cart: "ตะกร้าของฉัน", status: "สถานะออเดอร์", history: "ประวัติการสั่งซื้อ" };
+  const titles = {
+    menu: "ร้านชาแมกไม้",
+    cart: "ตะกร้าของฉัน",
+    status: "สถานะออเดอร์",
+    history: "ประวัติการสั่งซื้อ",
+  };
 
   return (
     <div className="phone-header">

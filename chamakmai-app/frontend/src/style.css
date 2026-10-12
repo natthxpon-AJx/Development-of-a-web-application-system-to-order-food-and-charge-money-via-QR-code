@@ -1,3 +1,4 @@
+/* กฎพื้นฐานที่ใช้ร่วมกันทุกหน้า รวมการเข้าถึงด้วยคีย์บอร์ดและ reduced motion */
 :root { font-family: 'Sarabun', 'Noto Sans Thai', system-ui, sans-serif; font-size: 16px; line-height: 1.5; color: #111827; background: #f3f4f6; color-scheme: light; font-synthesis: none; text-rendering: optimizeLegibility; }
 * { box-sizing: border-box; }
 body { margin: 0; }

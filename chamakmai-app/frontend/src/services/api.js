@@ -3,14 +3,19 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const SESSION_KEY = "cm-staff-session";
 
+// เก็บ/ตรวจข้อมูล session ฝั่ง browser สำหรับแสดงผู้ใช้และแนบ token กับ API
 function getSession() {
   try {
     const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
     return session?.token && session.expiresAt > Date.now() ? session : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-export function getCurrentUser() { return getSession(); }
+export function getCurrentUser() {
+  return getSession();
+}
 
 export function logoutUser() {
   sessionStorage.removeItem(SESSION_KEY);
@@ -23,14 +28,19 @@ function saveSession(session) {
 }
 
 export async function fetchCurrentUser() {
+  // ตรวจ token กับ Backend และซิงก์ข้อมูลผู้ใช้ล่าสุดกลับเข้า session ของหน้าเว็บ
   const user = await request("/auth/me");
   const session = getSession();
   if (session) saveSession({ ...session, ...user });
   return user;
 }
 
-export function checkConnection() { return request("/health"); }
+export function checkConnection() {
+  // ใช้ health endpoint ตรวจว่า Backend พร้อมรับคำขอหรือไม่
+  return request("/health");
+}
 
+// ตัวกลางเรียกทุก endpoint: แนบ session, กำหนด timeout, อ่านคำตอบ และส่งต่อข้อผิดพลาดจาก Backend
 async function request(path, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
@@ -55,23 +65,34 @@ async function request(path, options = {}) {
     }
     const error = new Error(message);
     error.status = res.status;
-    if (res.status === 401 && sessionStorage.getItem(SESSION_KEY) && path !== "/login") logoutUser();
+    if (
+      res.status === 401
+      && sessionStorage.getItem(SESSION_KEY)
+      && path !== "/login"
+    ) {
+      logoutUser();
+    }
     throw error;
   }
   if (res.status === 204) return null;
   return await res.json();
   } catch (error) {
     if (error.name === "AbortError" || error instanceof TypeError) {
-      const connectionError = new Error(error.name === "AbortError" ? "ระบบตอบกลับช้า กรุณาลองใหม่" : "เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบเครือข่ายแล้วลองใหม่");
+      const message = error.name === "AbortError"
+        ? "ระบบตอบกลับช้า กรุณาลองใหม่"
+        : "เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบเครือข่ายแล้วลองใหม่";
+      const connectionError = new Error(message);
       connectionError.isNetworkError = true;
       throw connectionError;
     }
     throw error;
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// เมนู
+// เมนูและหมวดหมู่ — อ่าน/เพิ่ม/แก้ไข/ลบข้อมูลที่หน้า Customer และ Owner ใช้ร่วมกัน
 // ---------------------------------------------------------------------------
 export function fetchMenu() {
   return request("/menu");
@@ -154,7 +175,6 @@ export async function uploadMenuImage(file) {
     method: "POST",
     body: formData,
   });
-
 }
 
 export function fetchPaymentQr() {
@@ -176,7 +196,8 @@ export function setMenuItemAvailability(id, isAvailable) {
 }
 
 // ---------------------------------------------------------------------------
-// ออเดอร์ — ไม่ใส่ table จะได้ออเดอร์ของทุกโต๊ะ (ใช้โดย Kitchen / Cashier)
+// ออเดอร์และจำนวนโต๊ะ — ใช้ร่วมกันในหน้า Customer, Kitchen และ Cashier
+// ไม่ใส่ table ตอนอ่านออเดอร์จะได้ข้อมูลของทุกโต๊ะ (ใช้โดย Kitchen / Cashier)
 // ---------------------------------------------------------------------------
 export function fetchOrders(table) {
   const query = table ? `?table=${encodeURIComponent(table)}` : "";
@@ -217,7 +238,8 @@ export function updateOrderItemStatus(orderItemId, status, table) {
 }
 
 // ---------------------------------------------------------------------------
-// การชำระเงิน — ไม่ใส่ table จะได้ประวัติของทุกโต๊ะ (ใช้โดย Owner dashboard)
+// การชำระเงิน — อ่านประวัติให้ Owner/Cashier และบันทึกปิดบิลจากหน้า Cashier
+// ไม่ใส่ table ตอนอ่านประวัติจะได้ข้อมูลของทุกโต๊ะ (ใช้โดย Owner dashboard)
 // ---------------------------------------------------------------------------
 export function fetchPayments(table) {
   const query = table ? `?table=${encodeURIComponent(table)}` : "";
@@ -233,7 +255,7 @@ export function payTable(table, method, details = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// พนักงาน
+// พนักงาน — อ่านและจัดการบัญชีจากหน้า Owner โดย Backend ตรวจสิทธิ์ผู้เรียก
 // ---------------------------------------------------------------------------
 export function fetchStaff() {
   return request("/staff");
@@ -248,7 +270,10 @@ export function createStaff(payload) {
 }
 
 export function updateStaff(id, payload) {
-  return request(`/staff/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+  return request(`/staff/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function deleteStaff(id) {
@@ -256,7 +281,7 @@ export function deleteStaff(id) {
 }
 
 // ---------------------------------------------------------------------------
-// เข้าสู่ระบบ
+// เข้าสู่ระบบ — ส่งข้อมูลรับรองไป Backend และเก็บ session ที่ตอบกลับมา
 // ---------------------------------------------------------------------------
 export async function loginUser(username, password) {
   const session = await request("/login", {

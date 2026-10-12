@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import pool from "../db.js";
 import { issueSession } from "../auth.js";
 
+// ชุดทดสอบ API จำลองฐานข้อมูลไว้ในหน่วยความจำ เพื่อไม่แก้ข้อมูลร้านจริง
 // Every database entry point is replaced before loading the app. Unknown SQL
 // fails the test instead of falling back to MySQL, so these tests cannot touch
 // the restaurant's database or run startup migrations.
@@ -197,6 +198,7 @@ async function call(path, { method = "GET", body, user, token } = {}) {
   return { status: response.status, data };
 }
 
+// ทดสอบการเข้าสู่ระบบ สิทธิ์ของแต่ละตำแหน่ง และการจัดการบัญชีพนักงาน
 describe("staff access", () => {
   it("protects staff reads and writes while keeping table-scoped customer reads public", async () => {
     for (const path of ["/orders", "/payments", "/staff", "/auth/me"]) assert.equal((await call(path)).status, 401);
@@ -312,6 +314,7 @@ describe("staff access", () => {
   });
 });
 
+// ทดสอบการตั้งค่า QR ที่เจ้าของร้านบันทึกและแคชเชียร์อ่านไปแสดงตอนรับเงิน
 describe("payment QR settings", () => {
   it("allows owners to update and clear the QR while cashiers can only read it", async () => {
     assert.equal((await call("/store-settings/payment-qr")).status, 401);
@@ -335,6 +338,7 @@ describe("payment QR settings", () => {
   });
 });
 
+// ทดสอบคิดยอด ยืนยันบิล และทำงานต่อของครัวหลังรับชำระเงินสด
 describe("cash payments", () => {
   const body = () => ({ table: "T01", method: "cash", orderIds: [1, 2, 3], expectedAmount: 110.75 });
   it("pays only uncancelled orders, preserves active kitchen work, and records one bill identity", async () => {
@@ -393,6 +397,7 @@ describe("cash payments", () => {
   });
 });
 
+// ทดสอบรับอาหารและตรวจความถูกต้องของคำสั่งซื้อจากหน้าลูกค้า
 describe("food receipt and order validation", () => {
   it("acquires operational locks in parent-first order across order, item, and payment actions", async () => {
     const locks = () => state.queries.filter(({ sql }) => /FOR UPDATE$/.test(sql)).map(({ sql }) => /\bFROM\s+`?(\w+)/.exec(sql)?.[1]);

@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fetchOrders, fetchPayments, fetchPaymentQr, fetchTableCount, getCurrentUser, logoutUser, payTable, updateTableCount } from "../services/api";
 
+// หน้าคิดเงินแสดงโต๊ะที่มีบิลค้าง รองรับรับเงินสด/QR และดูประวัติพร้อมพิมพ์ใบเสร็จ
 const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
@@ -154,37 +155,19 @@ const styles = `
   }
 `;
 
-const qrStyles = `
-  .table-qr-container{padding:10px;width:100%;overflow-y:auto;}
-  .qr-controls-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:20px;}
-  .qr-header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
-  .qr-settings-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px;}
-  .qr-input{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;outline:none;font-family:inherit;background:#fff;color:var(--ink);}
-  .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;}
-  .qr-card{background:#fff;border:2px solid var(--brown-800);border-radius:16px;padding:20px 16px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.05);display:flex;flex-direction:column;align-items:center;page-break-inside:avoid;break-inside:avoid;}
-  .restaurant-brand{font-size:14px;font-weight:700;color:var(--brown-800);letter-spacing:.5px;}
-  .table-badge{font-size:26px;font-weight:800;color:var(--amber);margin-top:2px;}
-  .table-code-sub{font-size:11px;color:var(--ink-soft);margin-bottom:12px;font-family:'Space Mono',monospace;}
-  .qr-image-wrap{background:#fff;padding:10px;border-radius:12px;border:1px solid var(--line);display:inline-flex;justify-content:center;align-items:center;}
-  .qr-img{width:160px;height:160px;object-fit:contain;}
-  .qr-instruction{font-size:12.5px;font-weight:700;color:var(--navy-800);margin-top:12px;background:var(--amber-bg);padding:4px 10px;border-radius:20px;}
-  .qr-url-text{font-size:9.5px;color:var(--ink-soft);margin-top:8px;word-break:break-all;max-width:100%;}
-  @media(max-width:640px){.qr-settings-grid{grid-template-columns:1fr;}}
-  @media print{
-    @page{size:A4 portrait;margin:10mm;}
-    #app.printing-qr{display:flex!important;}
-    .no-print,#app .app-titlebar,#app .app-sidebar,.connection-alert{display:none!important;}
-    body,#app,.app-window,.app-flex,.app-body-wrap,.app-body{background:#fff!important;padding:0!important;margin:0!important;overflow:visible!important;height:auto!important;min-height:0!important;}
-    .app-window,.app-flex,.app-body-wrap,.app-body{display:block!important;}
-    .table-qr-container{padding:0!important;overflow:visible!important;}
-    .qr-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important;gap:20px!important;padding:0!important;}
-    .qr-card{height:auto!important;min-height:0!important;overflow:visible!important;border:2px solid #000!important;box-shadow:none!important;padding:24px 16px!important;page-break-inside:avoid!important;break-inside:avoid-page!important;}
-    .table-badge{color:#000!important;}.qr-instruction{background:#f0f0f0!important;color:#000!important;}
-  }
-`;
-
 const DEFAULT_TABLE_COUNT = 8;
 const POLL_INTERVAL_MS = 4000;
+
+// ตัวช่วยแปลงจำนวนโต๊ะ เงิน และรวมรายการ/การชำระเงินเพื่อแสดงผลบนหน้าแคชเชียร์
+function normalizeTableCount(value, fallback = DEFAULT_TABLE_COUNT) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function buildTableNumbers(count) {
+  const total = normalizeTableCount(count);
+  return Array.from({ length: total }, (_, index) => index + 1);
+}
 
 function money(n) {
   const amount = Number(n) || 0;
@@ -244,60 +227,6 @@ function orderTimeWithSeconds(order) {
   return order.time || "-";
 }
 
-function TableQrManager({ tableCount = DEFAULT_TABLE_COUNT }) {
-  const defaultOrigin = typeof window !== "undefined" ? window.location.origin : "https://your-restaurant.vercel.app";
-  const [baseUrl, setBaseUrl] = useState(defaultOrigin);
-  const [filterTable, setFilterTable] = useState("all");
-  const tables = Array.from({ length: tableCount }, (_, index) => index + 1);
-  const displayTables = filterTable === "all" ? tables : [Number(filterTable)];
-
-  return (
-    <div className="table-qr-container">
-      <div className="qr-controls-card no-print">
-        <div className="qr-header">
-          <div>
-            <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>📱 จัดการคิวอาร์โค้ดประจำโต๊ะ</h2>
-            <div className="muted" style={{ fontSize: 12.5 }}>สร้าง QR Code ให้ลูกค้าสแกนเข้าสั่งอาหารด้วยตนเอง</div>
-          </div>
-          <button type="button" className="btn btn-primary" onClick={() => window.print()}>🖨️ พิมพ์การ์ด QR</button>
-        </div>
-        <div className="qr-settings-grid">
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>URL โดเมนร้าน</label>
-            <input className="qr-input" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://your-app.vercel.app" />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>เลือกโต๊ะ</label>
-            <select className="qr-input" value={filterTable} onChange={(event) => setFilterTable(event.target.value)}>
-              <option value="all">ทุกโต๊ะ (1 - {tableCount})</option>
-              {tables.map((table) => <option key={table} value={table}>เฉพาะโต๊ะ {table}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-      <div className="qr-grid">
-        {displayTables.map((tableNum) => {
-          const code = tableCode(tableNum);
-          // หน้าลูกค้าถูกประกาศไว้ที่ /customer/:tableNumber ใน App.jsx
-          // จึงต้องส่งหมายเลขโต๊ะเป็น path parameter ไม่ใช่ query string
-          const orderUrl = `${baseUrl.replace(/\/$/, "")}/customer/${tableNum}`;
-          const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(orderUrl)}&margin=10`;
-          return (
-            <article key={tableNum} className="qr-card">
-              <div className="restaurant-brand">ร้านชาแมกไม้</div>
-              <div className="table-badge">โต๊ะ {tableNum}</div>
-              <div className="table-code-sub">{code}</div>
-              <div className="qr-image-wrap"><img src={qrImageUrl} alt={`QR Code โต๊ะ ${tableNum}`} className="qr-img" /></div>
-              <div className="qr-instruction">📲 สแกนเพื่อดูเมนูและสั่งอาหาร</div>
-              <div className="qr-url-text">{orderUrl}</div>
-            </article>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // รวมบิลของโต๊ะจากออเดอร์ที่ยังไม่จ่ายทั้งหมด (ไม่นับออเดอร์ที่ยกเลิก)
 function tableBill(code, orders) {
   const unpaid = orders.filter((o) => o.table === code && !o.paid && o.status !== "cancelled");
@@ -311,6 +240,7 @@ function tableBill(code, orders) {
 }
 
 export default function Cashier() {
+  // สถานะข้อมูลโต๊ะ บิล วิธีชำระเงิน ประวัติ ใบเสร็จ และงานระหว่างรอ API
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -335,6 +265,7 @@ export default function Cashier() {
   const dataEpoch = useRef(0);
   const currentUser = getCurrentUser();
 
+  // ตั้งชื่อแท็บ โหลดฟอนต์ และล้าง toast timer เมื่อออกจากหน้า
   useEffect(() => {
     document.title = "ร้านชาแมกไม้ — ระบบคิดเงิน";
     if (!document.getElementById("cm-google-fonts")) {
@@ -350,11 +281,13 @@ export default function Cashier() {
     };
   }, []);
 
+  // โหลด QR รับชำระเงินเมื่อแคชเชียร์เลือกวิธีสแกนจ่าย
   useEffect(() => {
     if (mode !== "qr") return undefined;
     let cancelled = false;
     setPaymentQrLoading(true);
     setPaymentQrError(null);
+    // ขอ URL QR ที่ร้านตั้งค่าไว้ใน Backend เพื่อแสดงวิธีสแกนจ่ายให้ลูกค้า
     fetchPaymentQr()
       .then((setting) => {
         if (!cancelled) setPaymentQrUrl(setting.imageUrl || "");
@@ -374,7 +307,7 @@ export default function Cashier() {
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   }
 
-  // โพลลิ่งออเดอร์ของทุกโต๊ะจากหลังบ้าน
+  // โหลดออเดอร์ จำนวนโต๊ะ และประวัติเป็นระยะ พร้อมกันข้อมูลเก่าทับผลหลังทำรายการ
   useEffect(() => {
     let cancelled = false;
     let pending = false;
@@ -383,13 +316,14 @@ export default function Cashier() {
       pending = true;
       const epoch = dataEpoch.current;
       setRefreshing(true);
+      // โหลดออเดอร์ จำนวนโต๊ะ และประวัติการชำระเงินจาก Backend พร้อมกัน
       const [orderResult, tableResult, paymentResult] = await Promise.allSettled([fetchOrders(), fetchTableCount(), fetchPayments()]);
       pending = false;
       if (cancelled) return;
       setRefreshing(false);
       if (epoch !== dataEpoch.current) return;
       if (orderResult.status === "fulfilled") setOrders(orderResult.value);
-      if (tableResult.status === "fulfilled") setTableCount(tableResult.value.count);
+      if (tableResult.status === "fulfilled") setTableCount(normalizeTableCount(tableResult.value.count));
       const error = [orderResult, tableResult].find((result) => result.status === "rejected");
       setLoadError(error ? error.reason.message || "โหลดข้อมูลไม่สำเร็จ" : null);
       if (paymentResult.status === "fulfilled") {
@@ -406,6 +340,7 @@ export default function Cashier() {
     };
   }, [retryKey]);
 
+  // คำนวณยอดบิลโต๊ะที่เลือก เงินทอน และข้อมูลสรุปประวัติ
   const bill = useMemo(
     () => (selected !== null ? tableBill(tableCode(selected), orders) : { items: [], total: 0 }),
     [selected, orders]
@@ -414,6 +349,7 @@ export default function Cashier() {
   const change = Math.max(0, cents(received) - cents(bill.total)) / 100;
   const historyBills = useMemo(() => paymentBills(payments), [payments]);
 
+  // จัดการเลือกโต๊ะและปุ่มคีย์แพด/เพิ่มจำนวนเงินในหน้ารับเงินสด
   function cashierSelect(t) {
     if (actionLock.current) return;
     if (tableBill(tableCode(t), orders).orders.length > 0) {
@@ -450,14 +386,17 @@ export default function Cashier() {
     setCash(String(total));
   }
 
+  // เพิ่มหรือลดจำนวนโต๊ะผ่าน API
   async function cashierChangeTableCount(delta) {
     if (tableCountUpdating || actionLock.current || loadError) return;
-    const nextCount = tableCount + delta;
+    const currentCount = normalizeTableCount(tableCount);
+    const nextCount = currentCount + delta;
     if (nextCount < 1) return;
     setTableCountUpdating(true);
     try {
+      // บันทึกจำนวนโต๊ะใหม่ใน Backend แล้วใช้ค่าที่ Backend ยืนยันกลับมา
       const result = await updateTableCount(nextCount);
-      setTableCount(result.count);
+      setTableCount(normalizeTableCount(result.count));
     } catch (err) {
       showToast(err.message || "เปลี่ยนจำนวนโต๊ะไม่สำเร็จ");
     } finally {
@@ -465,6 +404,7 @@ export default function Cashier() {
     }
   }
 
+  // ยืนยันการชำระเงิน บันทึกผลลัพธ์ และโหลดข้อมูล/ประวัติล่าสุดจาก backend
   async function cashierComplete(method) {
     if (selected === null || actionLock.current) return;
     if (method === "cash" && (loadError || !bill.orders?.length || cents(received) < cents(bill.total))) return;
@@ -475,6 +415,7 @@ export default function Cashier() {
     setPaying(true);
     let result;
     try {
+      // ส่งการชำระเงินไป Backend; เงินสดแนบรายการบิลและยอดที่คาดไว้เพื่อให้ตรวจสอบก่อนปิดบิล
       result = await payTable(tableCode(payingTable), method, method === "cash" ? { orderIds: submittedBill.orders.map((order) => order.id), expectedAmount: submittedBill.total } : undefined);
     } catch (err) {
       showToast(err.message || "บันทึกการชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -491,6 +432,7 @@ export default function Cashier() {
     setMode(null);
     setCash("");
     showToast(`รับชำระเงินโต๊ะ ${payingTable} เรียบร้อย ✓`);
+    // โหลดรายการและประวัติจาก Backend ใหม่หลังบันทึกชำระสำเร็จ
     const [orderResult, paymentResult] = await Promise.allSettled([fetchOrders(), fetchPayments()]);
     if (orderResult.status === "fulfilled") {
       setOrders(orderResult.value);
@@ -505,6 +447,7 @@ export default function Cashier() {
     setPaying(false);
   }
 
+  // โครงหน้าระบบพนักงาน: แถบหัว สถานะการเชื่อมต่อ เมนูข้าง และพื้นที่เนื้อหา
   function appWindow(title, body, dark, sidebarIcons) {
     return (
       <div className="app-window">
@@ -533,6 +476,7 @@ export default function Cashier() {
     );
   }
 
+  // แผงบิลโต๊ะ: รายการอาหาร ยอดรวม และทางเลือกไปหน้ารับเงินสดหรือ QR
   function cashierBillPanel() {
     if (mode === "cash") return cashierCashView();
     if (mode === "qr") return cashierQrView();
@@ -600,6 +544,7 @@ export default function Cashier() {
     );
   }
 
+  // หน้ารับเงินสด: คีย์แพด ยอดรับ เงินทอน และปุ่มยืนยันชำระ
   function cashierCashView() {
     const isEnoughCash = bill.orders.length > 0 && cents(received) >= cents(bill.total);
     return (
@@ -674,6 +619,7 @@ export default function Cashier() {
     );
   }
 
+  // หน้าสแกนจ่าย: แสดง QR รับชำระของร้านและยอดที่ลูกค้าต้องจ่าย
   function cashierQrView() {
     return (
       <>
@@ -705,8 +651,9 @@ export default function Cashier() {
 
   const hasBill = selected !== null && bill.orders.length > 0;
 
+  // การ์ดโต๊ะแสดงสถานะว่าง/ยอดค้าง และเปิดบิลเมื่อเลือกโต๊ะ
   function renderTableTiles() {
-    return Array.from({ length: tableCount }, (_, index) => index + 1).map((t) => {
+    return buildTableNumbers(tableCount).map((t) => {
       const b = tableBill(tableCode(t), orders);
       const has = b.orders.length > 0;
       const sel = selected === t;
@@ -724,6 +671,7 @@ export default function Cashier() {
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
   }
 
+  // แท็บประวัติการรับชำระ พร้อมรายละเอียดออเดอร์และพิมพ์ใบเสร็จ
   function cashierHistory() {
     return (
       <div className="cashier-history">
@@ -753,20 +701,21 @@ export default function Cashier() {
     );
   }
 
+  // เลือกเนื้อหาหน้าคิดเงินหรือประวัติ และแสดงแถบแจ้งข้อผิดพลาดการเชื่อมต่อ
   function cashierBody() {
     const error = view === "history" ? historyError : loadError;
     if (loading) return <div className="empty-state"><div className="glyph">⏳</div>กำลังโหลดข้อมูล...</div>;
     return (
       <>
-        {view !== "qr" && error ? <div className="connection-alert" role="status"><span>{error}<br />รายการที่แสดงอาจยังไม่เป็นข้อมูลล่าสุด</span><button type="button" className="btn btn-ghost btn-sm" disabled={refreshing || paying} onClick={() => setRetryKey((key) => key + 1)}>{refreshing ? "กำลังลอง..." : "ลองใหม่"}</button></div> : null}
-        {view === "qr" ? <TableQrManager tableCount={tableCount} /> : view === "history" ? cashierHistory() : (
+        {error ? <div className="connection-alert" role="status"><span>{error}<br />รายการที่แสดงอาจยังไม่เป็นข้อมูลล่าสุด</span><button type="button" className="btn btn-ghost btn-sm" disabled={refreshing || paying} onClick={() => setRetryKey((key) => key + 1)}>{refreshing ? "กำลังลอง..." : "ลองใหม่"}</button></div> : null}
+        {view === "history" ? cashierHistory() : (
           <div className="cashier-layout">
             <div className="tables-col">
               <div className="table-section-header">
                 <div style={{ fontWeight: 700 }}>โต๊ะ</div>
                 <div className="table-count-controls" aria-label="จัดการจำนวนโต๊ะ">
-                  <button type="button" onClick={() => cashierChangeTableCount(-1)} disabled={tableCountUpdating || paying || tableCount <= 1 || Boolean(loadError)} title="ลดจำนวนโต๊ะ" aria-label="ลดจำนวนโต๊ะ">−</button>
-                  <span className="table-count-value">{tableCountUpdating ? "กำลังบันทึก..." : `${tableCount} โต๊ะ`}</span>
+                  <button type="button" onClick={() => cashierChangeTableCount(-1)} disabled={tableCountUpdating || paying || normalizeTableCount(tableCount) <= 1 || Boolean(loadError)} title="ลดจำนวนโต๊ะ" aria-label="ลดจำนวนโต๊ะ">−</button>
+                  <span className="table-count-value">{tableCountUpdating ? "กำลังบันทึก..." : `${normalizeTableCount(tableCount)} โต๊ะ`}</span>
                   <button type="button" onClick={() => cashierChangeTableCount(1)} disabled={tableCountUpdating || paying || Boolean(loadError)} title="เพิ่มจำนวนโต๊ะ" aria-label="เพิ่มจำนวนโต๊ะ">+</button>
                 </div>
               </div>
@@ -781,10 +730,11 @@ export default function Cashier() {
     );
   }
 
+  // แสดงหน้าหลักแคชเชียร์และใบเสร็จสำหรับโหมดพิมพ์
   return (
     <>
-    <div id="app" className={view === "qr" ? "printing-qr" : ""}>
-      <style dangerouslySetInnerHTML={{ __html: styles + qrStyles }} />
+    <div id="app">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
       {appWindow(
         "Cashier / Point of Sale (แคชเชียร์)",
         cashierBody(),
@@ -792,7 +742,6 @@ export default function Cashier() {
         [
           { icon: "💳", label: "แคชเชียร์", active: view === "cashier", onClick: () => setView("cashier") },
           { icon: "🧾", label: "ประวัติ", active: view === "history", onClick: () => setView("history") },
-          { icon: "📱", label: "QR โต๊ะ", active: view === "qr", onClick: () => setView("qr") },
           { icon: "↪", label: "ออกจากระบบ", onClick: logoutUser },
         ]
       )}

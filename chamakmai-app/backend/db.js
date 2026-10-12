@@ -1,6 +1,8 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import { fileURLToPath } from "node:url";
+
+// ตั้งค่าการเชื่อมต่อและ connection pool ของ MySQL ที่ API และสคริปต์ใช้ร่วมกัน
 dotenv.config({ path: fileURLToPath(new URL(".env", import.meta.url)), quiet: true });
 
 // ค่าเริ่มต้นตรงกับการตั้งค่า XAMPP มาตรฐาน (MySQL ที่พอร์ต 3306, user root, ไม่มีรหัสผ่าน)

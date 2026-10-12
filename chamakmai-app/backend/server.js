@@ -10,32 +10,62 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { canAccess, issueSession, publicUser, verifySession } from "./auth.js";
 
+// จุดรวม REST API ของเว็บ: เมนู ออเดอร์ การชำระเงิน และงานหลังร้าน
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ตรวจสุขภาพการเชื่อมต่อฐานข้อมูลสำหรับหน้าเว็บและระบบ deployment
 app.get("/api/health", async (req, res) => {
-  try { await pool.query("SELECT 1"); res.json({ connected: true }); }
-  catch { res.status(503).json({ error: "เชื่อมต่อฐานข้อมูลไม่ได้" }); }
+  try {
+    await pool.query("SELECT 1");
+    res.json({ connected: true });
+  } catch {
+    res.status(503).json({ error: "เชื่อมต่อฐานข้อมูลไม่ได้" });
+  }
 });
 
-// Customer reads stay public; every staff operation is checked on the server.
+// Middleware ตรวจสิทธิ์ API; การอ่านของลูกค้าบางส่วนเปิดสาธารณะ ส่วนงานพนักงานตรวจ session และตำแหน่ง
 app.use("/api", async (req, res, next) => {
   let access = null;
+
   if (/^\/(staff|auth\/me)(\/|$)/.test(req.path)) {
-    access = req.path.startsWith("/staff") ? req.method === "GET" ? "staff-directory" : "admin" : "authenticated";
+    if (req.path.startsWith("/staff")) {
+      access = req.method === "GET" ? "staff-directory" : "admin";
+    } else {
+      access = "authenticated";
+    }
   }
-  if (/^\/(menu|categories|option-groups)(\/|$)/.test(req.path) && (req.method !== "GET" || req.path.startsWith("/option-groups"))) access = "owner-tools";
-  if (req.path === "/store-settings/payment-qr" && ["GET", "PUT"].includes(req.method)) access = req.method === "GET" ? "owner-tools-or-cashier" : "owner-tools";
-  if (req.path === "/tables/count" || req.path === "/payments" && req.method === "POST") access = "cashier";
-  if (req.path === "/orders" && req.method === "GET" && !req.query.table) access = "staff";
-  if (req.path === "/payments" && req.method === "GET" && !req.query.table) access = "owner-tools-or-cashier";
-  if (/^\/orders\/[^/]+\/status$/.test(req.path)) access = "kitchen";
-  if (/^\/order-items\/[^/]+\/status$/.test(req.path) && req.body?.status !== "received") access = "kitchen";
+
+  const isOwnerManagedResource = /^\/(menu|categories|option-groups)(\/|$)/.test(req.path);
+  if (isOwnerManagedResource && (req.method !== "GET" || req.path.startsWith("/option-groups"))) {
+    access = "owner-tools";
+  }
+
+  if (req.path === "/store-settings/payment-qr" && ["GET", "PUT"].includes(req.method)) {
+    access = req.method === "GET" ? "owner-tools-or-cashier" : "owner-tools";
+  }
+  if (req.path === "/tables/count" || (req.path === "/payments" && req.method === "POST")) {
+    access = "cashier";
+  }
+  if (req.path === "/orders" && req.method === "GET" && !req.query.table) {
+    access = "staff";
+  }
+  if (req.path === "/payments" && req.method === "GET" && !req.query.table) {
+    access = "owner-tools-or-cashier";
+  }
+  if (/^\/orders\/[^/]+\/status$/.test(req.path)) {
+    access = "kitchen";
+  }
+  if (/^\/order-items\/[^/]+\/status$/.test(req.path) && req.body?.status !== "received") {
+    access = "kitchen";
+  }
+
   if (!access) return next();
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   const session = verifySession(token);
   if (!session) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบใหม่" });
+
   try {
     const [users] = await pool.query("SELECT * FROM users WHERE user_id = ?", [session.sub]);
     const user = users[0];
@@ -43,11 +73,14 @@ app.use("/api", async (req, res, next) => {
     if (!canAccess(user, access)) return res.status(403).json({ error: "คุณไม่มีสิทธิ์ใช้งานส่วนนี้" });
     req.user = user;
     next();
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get("/api/auth/me", (req, res) => res.json(publicUser(req.user)));
 
+// ค่ากลางและตัวช่วยแปลงข้อมูลที่ใช้ร่วมกันใน route ต่าง ๆ
 const PORT = process.env.PORT || 4000;
 const DEFAULT_TABLE_COUNT = 8;
 const ORDER_STATUSES = ["waiting", "cooking", "served", "completed", "cancelled"];
@@ -258,6 +291,7 @@ function uploadBufferToCloudinary(buffer) {
   });
 }
 
+// เตรียมตารางหมวดหมู่และเติมหมวดเดิมจากเมนู เพื่อใช้ร่วมกับหน้าจัดการร้าน
 async function ensureCategoriesTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -277,6 +311,7 @@ async function ensureCategoriesTable() {
   }
 }
 
+// สร้างตารางเสริมและเติมค่าตั้งต้น โดยไม่ล้างข้อมูลร้านเดิม
 async function ensureOptionTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS option_groups (
@@ -330,7 +365,7 @@ async function ensureTableSettings() {
   await pool.query("INSERT IGNORE INTO store_settings (setting_key, setting_value) VALUES ('payment_qr_url', '')");
 }
 
-// Add columns without replacing tables or deleting existing orders/users.
+// เพิ่มคอลัมน์และดัชนีที่ระบบต้องใช้ โดยไม่แทนที่ตารางหรือลบข้อมูลเดิม
 export async function ensureOperationalColumns() {
   const additions = [
     ["orders", "paid_at", "DATETIME NULL"],
@@ -391,6 +426,7 @@ function tableNumberFromCode(table) {
   return match ? Number(match[1]) : null;
 }
 
+// ย้ายรูปแบบตัวเลือกเมนูเก่าไปยังตารางกลุ่มตัวเลือกก่อนเริ่มให้บริการ
 async function migrateLegacyMenuOptions() {
   const [columns] = await pool.query("SHOW COLUMNS FROM menu_items LIKE 'options_config'");
   if (!columns.length) return;
@@ -434,7 +470,7 @@ async function migrateLegacyMenuOptions() {
 }
 
 // ---------------------------------------------------------------------------
-// เมนู (menu_items) — รวม sku
+// เมนูและหมวดหมู่ — ข้อมูลแสดงในหน้าลูกค้าและเครื่องมือจัดการของเจ้าของร้าน
 // ---------------------------------------------------------------------------
 app.get("/api/menu", async (req, res) => {
   try {
@@ -535,6 +571,7 @@ app.delete("/api/categories/:name", async (req, res) => {
   }
 });
 
+// รับภาพเมนูจากหน้าจัดการ แล้วเก็บไฟล์บน Cloudinary
 app.post("/api/menu/upload", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
@@ -549,6 +586,7 @@ app.post("/api/menu/upload", upload.single("image"), async (req, res) => {
   }
 });
 
+// ตั้งค่า QR สำหรับหน้าแคชเชียร์และหน้ารับชำระเงินของลูกค้า
 app.get("/api/store-settings/payment-qr", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT setting_value FROM store_settings WHERE setting_key = ?", ["payment_qr_url"]);
@@ -588,7 +626,7 @@ app.put("/api/store-settings/payment-qr", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// ออเดอร์ (orders + order_items)
+// โต๊ะและออเดอร์ — ลูกค้าส่งรายการจากตะกร้า ส่วนพนักงานดูรายการตามสิทธิ์
 // ---------------------------------------------------------------------------
 // GET /api/tables -> จำนวนโต๊ะที่เปิดใช้งานร่วมกันทุกบทบาท
 app.get("/api/tables", async (req, res) => {
@@ -700,6 +738,7 @@ app.post("/api/orders", async (req, res) => {
   } finally { conn?.release(); }
 });
 
+// สถานะงานครัว: เริ่มทำ เสิร์ฟ หรือยกเลิกออเดอร์ที่ยังไม่ชำระ
 app.patch("/api/orders/:id/status", async (req, res) => {
   let conn;
   try {
@@ -780,6 +819,7 @@ app.patch("/api/order-items/:id/status", async (req, res) => {
   } finally { conn?.release(); }
 });
 
+// ประวัติและการรับชำระเงินจากหน้าแคชเชียร์ พร้อมตรวจยอดและบันทึกเป็นชุดธุรกรรม
 app.get("/api/payments", async (req, res) => {
   try {
     const { table } = req.query;
@@ -824,6 +864,7 @@ app.post("/api/payments", async (req, res) => {
     console.error(err); res.status(500).json({ error: "บันทึกการชำระเงินไม่สำเร็จ" });
   } finally { conn?.release(); }
 });
+// ผูกกลุ่มตัวเลือกกับเมนู เพื่อให้หน้าเมนูปรับแต่งสินค้าและราคาได้
 async function syncMenuOptionGroups(conn, menuId, optionGroupIds) {
   const ids = [...new Set((Array.isArray(optionGroupIds) ? optionGroupIds : []).map(Number).filter(Boolean))];
   if (ids.length) {
@@ -945,6 +986,7 @@ app.delete("/api/option-groups/:id", async (req, res) => {
   }
 });
 
+// เพิ่ม แก้ไข และลบเมนูจากหน้าจัดการร้าน โดยผูกตัวเลือกเสริมที่เลือกไว้
 // POST /api/menu  body: { sku, name, type, category, price, imageUrl, optionsConfig }
 app.post("/api/menu", async (req, res) => {
   let conn;
@@ -1099,6 +1141,7 @@ app.delete("/api/menu/:id", async (req, res) => {
 // phone, position เป็นคอลัมน์ส่วนขยาย (ไม่ได้อยู่ใน Database Design เดิม) เพื่อรองรับ
 // ฟอร์ม "จัดการพนักงาน" ที่มีอยู่แล้วในโปรเจกต์ — ไม่ส่ง password_hash กลับไปฝั่ง client เด็ดขาด
 // ---------------------------------------------------------------------------
+// จัดการบัญชีและข้อมูลพนักงานที่แสดงในหน้าเจ้าของร้าน โดยไม่ส่งรหัสผ่านกลับไปยังเว็บ
 function staffValues(body, existing = {}) {
   const value = { ...publicUser({ ...existing, is_active: existing.is_active ?? 1 }), ...body };
   if (typeof value.displayName !== "string" || !value.displayName.trim() || value.displayName.length > 100) throw new Error("กรุณาระบุชื่อพนักงานไม่เกิน 100 ตัวอักษร");
@@ -1192,20 +1235,35 @@ app.post("/api/login", async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่" }); }
 });
 
+// แปลงข้อผิดพลาดที่ไม่ถูกจัดการให้เป็นคำตอบ API รูปแบบเดียวกัน
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
-  res.status(err instanceof SyntaxError ? 400 : 500).json({ error: err instanceof SyntaxError ? "ข้อมูลที่ส่งไม่ถูกต้อง" : "ระบบไม่พร้อมใช้งาน กรุณาลองใหม่" });
+
+  const isInvalidRequest = err instanceof SyntaxError;
+  const status = isInvalidRequest ? 400 : 500;
+  const message = isInvalidRequest
+    ? "ข้อมูลที่ส่งไม่ถูกต้อง"
+    : "ระบบไม่พร้อมใช้งาน กรุณาลองใหม่";
+  res.status(status).json({ error: message });
 });
 
 export { app };
+
+// เตรียม schema ที่จำเป็นก่อนเปิดรับคำขอจากเว็บ
 export async function startServer() {
   await ensureOptionTables();
   await ensureTableSettings();
   await ensureOperationalColumns();
   await migrateLegacyMenuOptions();
-  return app.listen(PORT, () => console.log(`ร้านชาแมกไม้ — backend API ทำงานที่ http://localhost:${PORT}`));
+  return app.listen(PORT, () => {
+    console.log(`ร้านชาแมกไม้ — backend API ทำงานที่ http://localhost:${PORT}`);
+  });
 }
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  startServer().catch((err) => { console.error("เริ่มระบบหลังบ้านไม่สำเร็จ:", err); process.exitCode = 1; });
+  startServer().catch((err) => {
+    console.error("เริ่มระบบหลังบ้านไม่สำเร็จ:", err);
+    process.exitCode = 1;
+  });
 }

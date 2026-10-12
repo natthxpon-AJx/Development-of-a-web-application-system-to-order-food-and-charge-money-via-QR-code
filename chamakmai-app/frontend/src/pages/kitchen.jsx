@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fetchOrders, getCurrentUser, logoutUser, updateOrderStatus, updateOrderItemStatus } from "../services/api";
 
+// หน้าครัวแสดงคิวออเดอร์สด ให้พนักงานรับงาน อัปเดตอาหารเสร็จ หรือยกเลิกรายการ
 const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
@@ -151,6 +152,7 @@ const LABELS = {
 
 const POLL_INTERVAL_MS = 4000;
 
+// รวมรายการอาหารที่เหมือนกันในการ์ดออเดอร์ โดยคงสถานะรับอาหารของลูกค้าไว้
 function aggregateItems(items) {
   const map = new Map();
   items.forEach((item) => {
@@ -180,6 +182,7 @@ function aggregateItems(items) {
 }
 
 export default function Kitchen() {
+  // สถานะคิว ประวัติ ตัวกรอง และตัวบอกว่ากำลังบันทึกการเปลี่ยนสถานะใดอยู่
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -197,6 +200,7 @@ export default function Kitchen() {
   const dataEpoch = useRef(0);
   const currentUser = getCurrentUser();
 
+  // ตั้งชื่อแท็บ โหลดฟอนต์ และล้าง toast timer เมื่อออกจากหน้า
   useEffect(() => {
     document.title = "ร้านชาแมกไม้ — ระบบครัว";
     if (!document.getElementById("cm-google-fonts")) {
@@ -218,12 +222,13 @@ export default function Kitchen() {
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   }
 
+  // อัปเดตนาฬิกาเพื่อคำนวณเวลาที่ออเดอร์รอในครัว
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
 
-  // โพลลิ่งออเดอร์ของทุกโต๊ะจากหลังบ้าน
+  // โหลดออเดอร์ทุกโต๊ะเป็นระยะ เพื่อให้คิวครัวอัปเดตอัตโนมัติ
   useEffect(() => {
     let cancelled = false;
     let pending = false;
@@ -233,6 +238,7 @@ export default function Kitchen() {
       const epoch = dataEpoch.current;
       setRefreshing(true);
       try {
+        // ขอคิวออเดอร์ทุกโต๊ะจาก Backend เพื่อแสดงงานครัวล่าสุด
         const data = await fetchOrders(); // ไม่ใส่ table = ทุกโต๊ะ
         if (cancelled || epoch !== dataEpoch.current) return;
         setOrders(data);
@@ -256,6 +262,7 @@ export default function Kitchen() {
     };
   }, [retryKey]);
 
+  // แยกคิวที่กำลังดำเนินการออกจากประวัติออเดอร์ที่จบหรือยกเลิกแล้ว
   const activeOrders = useMemo(() => {
     return orders
       .filter((o) => o.status === "waiting" || o.status === "cooking")
@@ -268,8 +275,10 @@ export default function Kitchen() {
 
   const actionBusy = Boolean(busyId || itemBusyId);
 
+  // โหลดสถานะล่าสุดหลังการเปลี่ยนแปลงออเดอร์หรือรายการอาหาร
   async function refreshAfterAction() {
     try {
+      // ซิงก์คิวกับ Backend หลังอัปเดตสถานะ เพื่อให้หน้าครัวแสดงข้อมูลที่บันทึกจริง
       setOrders(await fetchOrders());
       setLoadError(null);
     } catch {
@@ -277,6 +286,7 @@ export default function Kitchen() {
     }
   }
 
+  // เปลี่ยนสถานะทั้งออเดอร์จากรอคิวเป็นกำลังทำ หรือจากกำลังทำเป็นเสร็จ
   async function kitchenAdvance(order) {
     const nextStatus = order.status === "waiting" ? "cooking" : order.status === "cooking" ? "served" : null;
     if (!nextStatus || actionLock.current || loadError) return;
@@ -285,6 +295,7 @@ export default function Kitchen() {
     dataEpoch.current += 1;
     setBusyId(order.id);
     try {
+      // เปลี่ยนสถานะออเดอร์ทั้งใบ (รับทำ/เสร็จ) ผ่าน Backend
       const updated = await updateOrderStatus(order.id, nextStatus);
       setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updated } : o)));
       showToast(
@@ -301,6 +312,7 @@ export default function Kitchen() {
     }
   }
 
+  // บันทึกสถานะรายการอาหาร และปิดออเดอร์เมื่อทำครบทุกเมนู
   async function updateItems(order, itemIds, status, busyKey, successMessage, completeOrder = false) {
     if (actionLock.current || loadError || !itemIds.length) return;
     const displayNumber = order.orderNumber ?? order.id;
@@ -311,6 +323,7 @@ export default function Kitchen() {
       const results = [];
       for (const id of itemIds) {
         try {
+          // บันทึกสถานะแต่ละรายการอาหารแยกกัน เพื่อรองรับการทำสำเร็จบางรายการ
           await updateOrderItemStatus(id, status);
           results.push({ status: "fulfilled" });
         } catch (reason) {
@@ -328,6 +341,7 @@ export default function Kitchen() {
       let orderCompletionError = null;
       if (completeOrder && !failed) {
         try {
+          // ปิดสถานะออเดอร์ทั้งใบเมื่อรายการอาหารทุกจานเสร็จและบันทึกสำเร็จ
           const updated = await updateOrderStatus(order.id, "served");
           setOrders((previous) => previous.map((currentOrder) => currentOrder.id === order.id ? { ...currentOrder, ...updated } : currentOrder));
           orderCompleted = true;
@@ -348,6 +362,7 @@ export default function Kitchen() {
     }
   }
 
+  // จัดการปุ่มทำเสร็จ ยกเลิกรายการ และทำรายการทั้งหมดในครัว
   function kitchenItemDone(order, item) {
     if (order.status !== "cooking" || item.status !== "waiting") return;
     const ids = item.ids || [item.id];
@@ -369,6 +384,7 @@ export default function Kitchen() {
     return updateItems(order, ids, "done", `all-${order.id}`, `เมนูทั้งหมดของออเดอร์ #${order.orderNumber ?? order.id} เสร็จสิ้น ✓`, true);
   }
 
+  // โครงหน้าพนักงานครัวพร้อมแถบหัว สถานะเชื่อมต่อ เมนู และพื้นที่คิว
   function appWindow(title, body, dark, sidebarIcons) {
     return (
       <div className="app-window">
@@ -402,6 +418,7 @@ export default function Kitchen() {
     );
   }
 
+  // กระดานคิว/ประวัติ พร้อมตัวกรองและการ์ดออเดอร์แต่ละโต๊ะ
   function boardBody() {
     if (loading) {
       return <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>กำลังโหลดออเดอร์จากหลังบ้าน...</div>;
@@ -409,6 +426,7 @@ export default function Kitchen() {
     const ordersToRender = (view === "history" ? historyOrders : activeOrders).filter((order) => (tableFilter === "all" || order.table === tableFilter) && (view === "history" || statusFilter === "all" || order.status === statusFilter));
     const tables = Array.from(new Set(orders.map((order) => order.table))).sort();
 
+    // แสดงตัวกรอง สรุปจำนวนออเดอร์ และการ์ดที่ครัวใช้จัดการแต่ละรายการ
     return (
       <>
       {loadError ? <div className="connection-alert" role="status"><span>{loadError}<br />รายการที่แสดงอาจยังไม่เป็นข้อมูลล่าสุด</span><button type="button" className="btn btn-primary btn-sm" disabled={refreshing || actionBusy} onClick={() => setRetryKey((key) => key + 1)}>{refreshing ? "กำลังลอง..." : "ลองใหม่"}</button></div> : null}
@@ -506,6 +524,7 @@ export default function Kitchen() {
     );
   }
 
+  // หน้าหลักครัว: แสดงคิวปัจจุบัน สลับประวัติ และออกจากระบบ
   return (
     <div id="app">
       <style dangerouslySetInnerHTML={{ __html: styles }} />

@@ -9,6 +9,7 @@ const STATUS_LABELS = {
   done: ["พร้อมรับ", "badge-done"],
 };
 
+// รวมเมนูซ้ำในออเดอร์เดียวกัน เพื่อแสดงจำนวนรวมและยืนยันรับอาหารเป็นกลุ่ม
 function groupOrderItems(items) {
   const map = new Map();
   items.forEach((it) => {
@@ -31,7 +32,13 @@ function groupOrderItems(items) {
   return Array.from(map.values());
 }
 
-export default function CustomerStatusTab({ myOrders, money, onConfirmReadyItem, confirmingReadyId }) {
+// รายการออเดอร์ที่กำลังดำเนินการ พร้อมสถานะอาหารและปุ่มยืนยันรับอาหาร
+export default function CustomerStatusTab({
+  myOrders,
+  money,
+  onConfirmReadyItem,
+  confirmingReadyId,
+}) {
   if (!myOrders.length) {
     return (
       <div className="empty-state">
@@ -54,14 +61,34 @@ export default function CustomerStatusTab({ myOrders, money, onConfirmReadyItem,
               <span className={`badge ${badgeClass}`}>{label}</span>
             </div>
             {groupedItems.map((it, idx) => (
-              <div key={it.ids.join(",") || idx} style={{ fontSize: 13, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 10, padding: "9px 0", minHeight: 76, borderBottom: "1px solid var(--line)" }}>
+              <div
+                key={it.ids.join(",") || idx}
+                style={{
+                  fontSize: 13,
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  gap: 10,
+                  padding: "9px 0",
+                  minHeight: 76,
+                  borderBottom: "1px solid var(--line)",
+                }}
+              >
                 <div style={{ minWidth: 0 }}>
                   <div style={{ lineHeight: 1.45, minHeight: 22 }}>
                     {it.name} {it.note ? `(${it.note})` : ""} x{it.qty}
                   </div>
-                  <div style={{ minHeight: 34, display: "flex", alignItems: "flex-end", paddingTop: 5 }}>
+                  <div
+                    style={{
+                      minHeight: 34,
+                      display: "flex",
+                      alignItems: "flex-end",
+                      paddingTop: 5,
+                    }}
+                  >
                     {it.status === "cancelled" ? (
-                      <div style={{ fontSize: 11.5, color: "var(--clay)", fontWeight: 700 }}>
+                      <div
+                        style={{ fontSize: 11.5, color: "var(--clay)", fontWeight: 700 }}
+                      >
                         ยกเลิกแล้ว
                       </div>
                     ) : null}
@@ -73,17 +100,30 @@ export default function CustomerStatusTab({ myOrders, money, onConfirmReadyItem,
                         disabled={Boolean(confirmingReadyId)}
                         onClick={() => onConfirmReadyItem(it)}
                       >
-                        {it.ids.some((id) => (confirmingReadyId || "").split(",").includes(String(id))) ? "กำลังยืนยัน..." : "รับอาหารแล้ว"}
+                        {it.ids.some((id) => (confirmingReadyId || "").split(",").includes(String(id)))
+                          ? "กำลังยืนยัน..."
+                          : "รับอาหารแล้ว"}
                       </button>
                     ) : null}
                     {it.status === "received" ? (
-                      <div style={{ fontSize: 11.5, color: "var(--jade)", fontWeight: 700 }}>
+                      <div
+                        style={{ fontSize: 11.5, color: "var(--jade)", fontWeight: 700 }}
+                      >
                         ✓ รับอาหารแล้ว
                       </div>
                     ) : null}
                   </div>
                 </div>
-                <span style={{ whiteSpace: "nowrap", paddingTop: 2, color: it.status === "cancelled" ? "var(--ink-soft)" : undefined, textDecoration: it.status === "cancelled" ? "line-through" : undefined }}>{money(it.price * it.qty)}</span>
+                <span
+                  style={{
+                    whiteSpace: "nowrap",
+                    paddingTop: 2,
+                    color: it.status === "cancelled" ? "var(--ink-soft)" : undefined,
+                    textDecoration: it.status === "cancelled" ? "line-through" : undefined,
+                  }}
+                >
+                  {money(it.price * it.qty)}
+                </span>
               </div>
             ))}
             {o.paid ? (

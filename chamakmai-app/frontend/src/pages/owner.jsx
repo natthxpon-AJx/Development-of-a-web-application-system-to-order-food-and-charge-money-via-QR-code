@@ -23,6 +23,7 @@ import {
 } from "../services/api";
 import OptionTemplateEditor from "../components/owner/OptionTemplateEditor";
 
+// หน้าเจ้าของร้านรวมรายงาน ยอดขาย จัดการเมนู QR รับชำระเงิน และบัญชีพนักงาน
 const styles = `
   :root{
     --brown-900:#3B2A1B; --brown-800:#5B4530; --brown-700:#6E5237;
@@ -174,6 +175,7 @@ const styles = `
   }
 `;
 
+// ตัวช่วยจัดรูปแบบเงิน วันเวลา และจัดกลุ่มยอดรับชำระสำหรับแดชบอร์ด
 function money(n) {
   return "฿" + n.toLocaleString("th-TH", { minimumFractionDigits: n % 1 ? 2 : 0 });
 }
@@ -275,6 +277,7 @@ function getSalesChartData(payments, range) {
 }
 
 export default function Owner({ canManageStaff = true }) {
+  // สถานะหน้าปัจจุบันและข้อมูลที่แต่ละส่วนของหน้าร้านเจ้าของต้องใช้
   const [ownerState, setOwnerState] = useState({ tab: "dashboard", menuCat: "" });
   const [dashboardPeriod, setDashboardPeriod] = useState("daily");
   const [salesChartRange, setSalesChartRange] = useState("daily");
@@ -336,6 +339,7 @@ export default function Owner({ canManageStaff = true }) {
   const [lastSuccessfulLoadedAt, setLastSuccessfulLoadedAt] = useState({});
   const [refreshing, setRefreshing] = useState(false);
 
+  // ป้องกันคำขอซ้ำ พร้อมเก็บสถานะโหลด/ข้อผิดพลาดแยกตามส่วนของหน้าจอ
   function beginAction(key) {
     if (mutationLocks.current.has(key)) return false;
     setActionError(null);
@@ -374,6 +378,7 @@ export default function Owner({ canManageStaff = true }) {
     };
   }, []);
 
+  // แจ้งผลการทำรายการให้ผู้ใช้เห็นบนหน้าเจ้าของร้าน
   function showToast(msg) {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -385,6 +390,7 @@ export default function Owner({ canManageStaff = true }) {
     showToast(message);
   }
 
+  // ขอรายการเมนูและหมวดหมู่จาก Backend แล้วใช้ผลลัพธ์อัปเดตข้อมูลในแท็บจัดการเมนู
   const loadMenu = async (silent = false) => {
     if (loadLocks.current.has("menu")) return;
     loadLocks.current.add("menu");
@@ -404,6 +410,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   };
 
+  // โหลดกลุ่มตัวเลือกจาก Backend เพื่อใช้ผูกกับเมนูอาหารและเครื่องดื่ม
   const loadOptionGroups = async (silent = false) => {
     if (loadLocks.current.has("options")) return;
     loadLocks.current.add("options");
@@ -417,6 +424,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   };
 
+  // ดึงประวัติการชำระเงินทุกโต๊ะจาก Backend ให้แดชบอร์ดคำนวณยอดขายและสถิติ
   const loadPayments = async (silent = false) => {
     if (loadLocks.current.has("dashboard")) return;
     loadLocks.current.add("dashboard");
@@ -433,6 +441,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   };
 
+  // โหลดรายชื่อและสถานะบัญชีพนักงานจาก Backend สำหรับตารางจัดการผู้ใช้
   const loadStaff = async (silent = false) => {
     if (loadLocks.current.has("staff")) return;
     loadLocks.current.add("staff");
@@ -449,6 +458,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   };
 
+  // อ่าน URL รูป QR รับชำระเงินที่บันทึกใน Backend เพื่อแสดงและแก้ไขการตั้งค่า
   const loadPaymentQr = async (silent = false) => {
     if (loadLocks.current.has("payment-qr")) return;
     loadLocks.current.add("payment-qr");
@@ -465,6 +475,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   };
 
+  // โหลดข้อมูลตั้งต้นจาก Backend เมื่อเปิดหน้าระบบเจ้าของร้าน
   useEffect(() => {
     loadMenu();
     loadOptionGroups();
@@ -472,6 +483,7 @@ export default function Owner({ canManageStaff = true }) {
     loadStaff();
   }, []);
 
+  // ขอข้อมูลล่าสุดจาก Backend เฉพาะแท็บที่เปิดอยู่ทุก 15 วินาที และพักเมื่อแท็บเบราว์เซอร์ไม่แสดง
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.hidden || mutationLocks.current.size) return;
@@ -487,6 +499,7 @@ export default function Owner({ canManageStaff = true }) {
     if (paymentQrPreview) URL.revokeObjectURL(paymentQrPreview);
   }, [paymentQrPreview]);
 
+  // ขอข้อมูลล่าสุดจาก Backend เฉพาะแท็บที่เปิดอยู่เมื่อผู้ใช้กดรีเฟรช
   async function refreshCurrentTab() {
     if (refreshing) return;
     setRefreshing(true);
@@ -555,6 +568,7 @@ export default function Owner({ canManageStaff = true }) {
     };
   }, [payments, dashboardPeriod]);
 
+  // สลับแท็บหลักและโหลดข้อมูลของส่วนที่เปิด
   function ownerSetTab(tab) {
     setActionError(null);
     setOwnerState((prev) => ({ ...prev, tab }));
@@ -564,6 +578,7 @@ export default function Owner({ canManageStaff = true }) {
     if (tab === "payment-qr") loadPaymentQr();
   }
 
+  // จัดการรูป QR รับชำระเงินที่จะแสดงในหน้าแคชเชียร์
   function ownerSelectPaymentQr(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -581,6 +596,7 @@ export default function Owner({ canManageStaff = true }) {
     mutationLocks.current.add("payment-qr");
     setPaymentQrSaving(true);
     try {
+      // อัปโหลดไฟล์ก่อน แล้วบันทึก URL ที่ Backend ส่งกลับเป็น QR สำหรับการชำระเงิน
       const uploaded = await uploadMenuImage(paymentQrFile);
       const setting = await savePaymentQr(uploaded.imageUrl);
       setPaymentQrUrl(setting.imageUrl || "");
@@ -601,6 +617,7 @@ export default function Owner({ canManageStaff = true }) {
     mutationLocks.current.add("payment-qr");
     setPaymentQrSaving(true);
     try {
+      // ส่งค่าว่างไป Backend เพื่อเอารูป QR รับชำระเงินที่บันทึกไว้ออก
       await savePaymentQr(null);
       setPaymentQrUrl("");
       setPaymentQrFile(null);
@@ -615,6 +632,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   }
 
+  // จัดการหมวดหมู่ รายการเมนู รูปภาพ ราคา และตัวเลือกเสริม
   function ownerSetMenuCat(menuCat) {
     setOwnerState((prev) => ({ ...prev, menuCat }));
   }
@@ -634,6 +652,7 @@ export default function Owner({ canManageStaff = true }) {
 
     if (!beginAction("category")) return;
     try {
+      // สร้างหมวดหมู่ใน Backend และใช้ชื่อที่ตอบกลับมาอัปเดตตัวเลือกบนหน้า
       const created = await createCategory(trimmed);
       const newName = created?.name || trimmed;
       setCategories((prev) => [...prev, newName]);
@@ -666,6 +685,7 @@ export default function Owner({ canManageStaff = true }) {
     const failed = [];
     for (const category of selectedCategories) {
       try {
+        // ลบแต่ละหมวดจาก Backend; เก็บผลสำเร็จและข้อผิดพลาดแยกกันก่อนอัปเดตหน้าจอ
         await deleteCategory(category);
         deleted.push(category);
       } catch (err) {
@@ -718,6 +738,7 @@ export default function Owner({ canManageStaff = true }) {
     }
     if (!beginAction("category")) return;
     try {
+      // เปลี่ยนชื่อหมวดหมู่ใน Backend ก่อนปรับชื่อที่อ้างอิงอยู่ในสถานะหน้า
       await updateCategory(oldName, newName);
       setCategories((prev) => prev.map((category) => (category === oldName ? newName : category)));
       setSelectedCategories((prev) => prev.map((category) => (category === oldName ? newName : category)));
@@ -736,6 +757,7 @@ export default function Owner({ canManageStaff = true }) {
   async function ownerToggleItem(item) {
     if (!beginAction("menu")) return;
     try {
+      // บันทึกสถานะพร้อมขาย/หยุดขายใน Backend แล้วสะท้อนผลในรายการเมนู
       await setMenuItemAvailability(item.id, !item.active);
       setMenu((prev) => prev.map((m) => (m.id === item.id ? { ...m, active: !m.active } : m)));
     } catch (err) {
@@ -797,10 +819,12 @@ export default function Owner({ canManageStaff = true }) {
       let imageUrl = null;
       if (selectedImage) {
         setUploadingImage(true);
+        // ส่งไฟล์รูปไป Backend เพื่อรับ URL ก่อนนำ URL ไปบันทึกพร้อมข้อมูลเมนู
         const uploadResult = await uploadMenuImage(selectedImage);
         imageUrl = uploadResult.imageUrl;
       }
 
+      // สร้างเมนูพร้อมราคา หมวดหมู่ สถานะ รูป และกลุ่มตัวเลือกที่เลือกไว้
       await createMenuItem({
         sku: newItem.sku.trim() || null,
         name: newItem.name.trim(),
@@ -844,10 +868,12 @@ export default function Owner({ canManageStaff = true }) {
       let imageUrl = editImagePreview || null;
       if (editImageFile) {
         setUploadingImage(true);
+        // เมื่อเลือกรูปใหม่ ให้อัปโหลดและใช้ URL ใหม่; หากไม่เลือกให้คง URL เดิม
         const uploadResult = await uploadMenuImage(editImageFile);
         imageUrl = uploadResult.imageUrl;
       }
 
+      // ส่งข้อมูลที่แก้ไขไป Backend และใช้ข้อมูลตอบกลับแทนรายการเดิมในหน้า
       const updated = await updateMenuItem(editingItemId, {
         sku: editingItem.sku.trim() || null,
         name: editingItem.name.trim(),
@@ -876,6 +902,7 @@ export default function Owner({ canManageStaff = true }) {
     if (!window.confirm(`ลบเมนู "${item.name}" หรือไม่?`)) return;
     if (!beginAction("menu")) return;
     try {
+      // ลบเมนูใน Backend ก่อนนำรายการนั้นออกจากหน้าจอ
       await deleteMenuItem(item.id);
       setMenu((prev) => prev.filter((m) => m.id !== item.id));
       showToast(`ลบเมนู "${item.name}" แล้ว`);
@@ -887,6 +914,7 @@ export default function Owner({ canManageStaff = true }) {
     }
   }
 
+  // จัดการเพิ่ม แก้ไข และลบบัญชีพนักงานตามสิทธิ์เจ้าของร้าน
   async function ownerAddStaff() {
     if (mutationLocks.current.has("staff")) return;
     if (!newStaff.username.trim() || !newStaff.password.trim() || !newStaff.displayName.trim()) {
@@ -899,6 +927,7 @@ export default function Owner({ canManageStaff = true }) {
     }
     if (!beginAction("staff")) return;
     try {
+      // ส่งข้อมูลบัญชีใหม่ไป Backend ให้สร้างพนักงานตามบทบาทและข้อมูลติดต่อที่ระบุ
       await createStaff({
         username: newStaff.username.trim(),
         password: newStaff.password,
@@ -937,6 +966,7 @@ export default function Owner({ canManageStaff = true }) {
     if (editingStaff.password && (editingStaff.password.length < 8 || editingStaff.password.length > 72)) { showToast("รหัสผ่านใหม่ต้องยาว 8 ถึง 72 ตัวอักษร"); return; }
     if (!beginAction("staff")) return;
     try {
+      // บันทึกข้อมูลบัญชีและสิทธิ์ที่แก้ไข; ส่งรหัสผ่านเฉพาะเมื่อกรอกรหัสใหม่
       await updateStaff(editingStaff.id, {
         displayName: editingStaff.displayName.trim(),
         phone: editingStaff.phone?.trim() || null,
@@ -968,6 +998,7 @@ export default function Owner({ canManageStaff = true }) {
     if (!window.confirm(`ยืนยันลบบัญชีของ ${person.displayName} (${person.username}) หรือไม่?`)) return;
     if (!beginAction("staff")) return;
     try {
+      // ลบบัญชีใน Backend แล้วโหลดรายชื่อใหม่เพื่อให้ตารางตรงกับข้อมูลจริง
       await deleteStaff(person.id);
       showToast(`ลบบัญชี "${person.displayName}" แล้ว`);
       await loadStaff(true);
@@ -984,6 +1015,7 @@ export default function Owner({ canManageStaff = true }) {
   const connectionClass = currentTabError ? "offline" : isInitialLoading || refreshing || !lastLoaded ? "checking" : "";
   const connectionLabel = currentTabError ? "เชื่อมต่อไม่สำเร็จ" : connectionClass ? "กำลังโหลดข้อมูล" : "เชื่อมต่อแล้ว";
 
+  // โครงหน้าระบบเจ้าของร้าน: แถบหัว เมนูหลัก และพื้นที่แสดงแท็บ
   function appWindow(title, body, dark, sidebarIcons) {
     return (
       <div className="app-window">
@@ -1023,6 +1055,7 @@ export default function Owner({ canManageStaff = true }) {
   const maxMonth = Math.max(1, ...Object.values(stats.monthTally));
   const periodLabel = dashboardPeriod === "daily" ? "รายวัน" : dashboardPeriod === "annual" ? `รายปี ${new Date().getFullYear() + 543}` : "รายสัปดาห์";
 
+  // กราฟสรุปยอดขายตามช่วงเวลาและยอดรวมแต่ละช่วง
   function salesSummaryChart() {
     const chartData = getSalesChartData(payments, salesChartRange);
     const chartWidth = 820;
@@ -1088,6 +1121,7 @@ export default function Owner({ canManageStaff = true }) {
     );
   }
 
+  // แดชบอร์ดแสดงยอดขาย สถิติการชำระ และรายการขายตามตัวกรองเวลา
   function dashboardBody() {
     if (paymentsLoading) {
       return <div className="muted" style={{ fontSize: 13 }}>กำลังโหลดข้อมูลยอดขาย...</div>;
@@ -1214,6 +1248,7 @@ export default function Owner({ canManageStaff = true }) {
     );
   }
 
+  // หน้าจัดการเมนูและหมวดหมู่ รวมแบบฟอร์มเพิ่ม/แก้ไขและความพร้อมขาย
   function menuBody() {
     if (menuLoading) {
       return <div className="muted" style={{ fontSize: 13 }}>กำลังโหลดเมนู...</div>;
@@ -1504,6 +1539,7 @@ export default function Owner({ canManageStaff = true }) {
     );
   }
 
+  // หน้าตั้งค่ารูป QR ที่แคชเชียร์ใช้แสดงให้ลูกค้าสแกนจ่าย
   function paymentQrBody() {
     const previewUrl = paymentQrPreview || paymentQrUrl;
     return (
@@ -1534,6 +1570,7 @@ export default function Owner({ canManageStaff = true }) {
     );
   }
 
+  // หน้าจัดการรายชื่อพนักงาน สิทธิ์ สถานะบัญชี และแบบฟอร์มข้อมูล
   function staffBody() {
     if (staffLoading) {
       return <div className="muted" style={{ fontSize: 13 }}>กำลังโหลดรายชื่อพนักงาน...</div>;
@@ -1542,6 +1579,7 @@ export default function Owner({ canManageStaff = true }) {
     const visibleStaff = staff.filter((person) => [person.username, person.displayName, person.phone, person.position].some((value) => String(value || "").toLocaleLowerCase("th-TH").includes(query)));
     const editingSelf = String(editingStaff?.id) === String(currentUser?.id);
     const lastAdmin = editingStaff && isLastActiveAdmin(staff.find((person) => person.id === editingStaff.id) || editingStaff);
+    // แสดงตารางพนักงานและแบบฟอร์มเพิ่ม/แก้ไขบัญชีตามสิทธิ์ของผู้ใช้
     return (
       <>
         <div className="owner-toolbar">
@@ -1652,6 +1690,7 @@ export default function Owner({ canManageStaff = true }) {
     );
   }
 
+  // แสดงแท็บที่เลือกภายในหน้าหลักเจ้าของร้าน
   return (
     <div id="app">
       <style dangerouslySetInnerHTML={{ __html: styles }} />
@@ -1664,6 +1703,7 @@ export default function Owner({ canManageStaff = true }) {
           { icon: "📖", label: "จัดการเมนู", active: ownerState.tab === "menu", onclick: () => ownerSetTab("menu") },
           { icon: "👥", label: "จัดการพนักงาน", active: ownerState.tab === "staff", onclick: () => ownerSetTab("staff") },
           { icon: "▦", label: "QR ชำระเงิน", active: ownerState.tab === "payment-qr", onclick: () => ownerSetTab("payment-qr") },
+          // เรียก API ออกจากระบบและล้าง session ผ่าน service กลาง
           { icon: "↪", label: "ออกจากระบบ", onclick: logoutUser },
         ]
       )}
